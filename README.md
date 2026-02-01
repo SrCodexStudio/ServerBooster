@@ -5,7 +5,7 @@
   <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License"/>
 </p>
 
-<h1 align="center">⚡ ServerBooster ⚡</h1>
+<h1 align="center">ServerBooster</h1>
 
 <p align="center">
   <strong>The Ultimate Performance Optimization Plugin for Minecraft Servers</strong>
@@ -25,23 +25,24 @@
 
 ---
 
-## 📋 Overview
+## Overview
 
 **ServerBooster** is a comprehensive server optimization plugin designed to dramatically improve your Minecraft server's performance. This remastered edition has been completely rewritten in Kotlin with modern optimizations, coroutine-based processing, and full support for the latest Minecraft versions.
 
 ### Why ServerBooster?
 
-- 🚀 **Zero Dependencies** - Just drop it in your plugins folder and go!
-- 🔧 **Highly Configurable** - Fine-tune every aspect of optimization
-- 🎯 **Smart Optimization** - Only optimizes what needs to be optimized
-- 💾 **RAM Efficient** - Automatic chunk unloading keeps memory usage low
-- 🌐 **Multi-Platform** - Works on Spigot, Paper, and Folia
+- **Zero Dependencies** - Just drop it in your plugins folder and go!
+- **Highly Configurable** - Fine-tune every aspect of optimization
+- **Smart Optimization** - Only optimizes what needs to be optimized
+- **RAM Efficient** - Automatic chunk unloading keeps memory usage low
+- **Multi-Platform** - Works on Spigot, Paper, and Folia
+- **Async Processing** - Uses Kotlin Coroutines for lag-free operations
 
 ---
 
-## ⚡ Features
+## Features
 
-### 🐄 Entity Optimization
+### Entity Optimization
 
 | Feature | Description |
 |---------|-------------|
@@ -53,7 +54,7 @@
 
 > Entities are frozen using NMS (Native Minecraft Server) methods, ensuring minimal performance impact while maintaining vanilla behavior when players are nearby.
 
-### 📦 Item Stacking & Holograms
+### Item Stacking & Holograms
 
 | Feature | Description |
 |---------|-------------|
@@ -65,7 +66,20 @@
 
 > Reduce thousands of item entities into just a few, dramatically improving TPS on servers with mob farms or heavy item drops.
 
-### 🗺️ Chunk Optimization
+### Block Limiter (NEW)
+
+| Feature | Description |
+|---------|-------------|
+| **Radius-Based Detection** | Limits blocks within a configurable radius (like entity limiter) |
+| **Predefined Categories** | Groups like "hoppers", "pistons", "furnaces" |
+| **Custom Materials** | Add ANY block by its Material name |
+| **Global Limits** | Limit building blocks (stone, wood, etc.) |
+| **Entity Support** | Limits armor stands, item frames, paintings |
+| **Non-Destructive** | Existing blocks are never removed |
+
+> Prevent lag machines and excessive block placement. Fully customizable per-block limits with radius-based detection.
+
+### Chunk Optimization
 
 | Feature | Description |
 |---------|-------------|
@@ -76,7 +90,19 @@
 
 > Paper 1.21+ handles chunk management very efficiently. ServerBooster complements this by managing chunks while players are online but have moved away from areas.
 
-### 🛫 Elytra Optimization
+### Detection System (NEW)
+
+| Feature | Description |
+|---------|-------------|
+| **Spawner Detection** | Find all spawners near online players |
+| **Redstone Detection** | Locate high-density redstone mechanisms |
+| **Async Processing** | Uses coroutines for lag-free scanning |
+| **Teleport Commands** | Quick navigation to detected locations |
+| **Player Proximity** | Shows which players are near each detection |
+
+> Powerful admin tool to identify and locate potential lag sources across your server.
+
+### Elytra Optimization
 
 | Feature | Description |
 |---------|-------------|
@@ -86,7 +112,7 @@
 
 > Prevents players from generating excessive chunks through rapid elytra travel.
 
-### ⏱️ TPS-Based Commands
+### TPS-Based Commands
 
 | Feature | Description |
 |---------|-------------|
@@ -98,7 +124,7 @@
 
 ---
 
-## 📥 Installation
+## Installation
 
 ### Requirements
 
@@ -116,11 +142,11 @@
 
 4. **Configure** the plugin in `plugins/ServerBooster/`
 
-5. **Enjoy** better performance! ⚡
+5. **Enjoy** better performance!
 
 ---
 
-## ⚙️ Configuration
+## Configuration
 
 ServerBooster uses multiple configuration files for better organization:
 
@@ -130,6 +156,7 @@ plugins/ServerBooster/
 ├── config_optimize_entities.yml # Entity AI optimization
 ├── config_holo.yml              # Item stacking & holograms
 ├── chunks_optimizer.yml         # Chunk management
+├── chunk_block_limits.yml       # Block placement limits (NEW)
 ├── config_tps.yml               # TPS-based commands
 ├── lang/                        # Language files
 │   ├── en_us.yml
@@ -138,7 +165,7 @@ plugins/ServerBooster/
     └── en.yml
 ```
 
-### 📄 Entity Limiter (`config_entity_limiter.yml`)
+### Entity Limiter (`config_entity_limiter.yml`)
 
 Controls how many entities can exist in a given area.
 
@@ -181,7 +208,112 @@ limits:
 | `age-limiter-enabled` | Remove old entities | `false` |
 | `keep-sitting-entities` | Protect sitting pets | `true` |
 
-### 📄 Entity Optimizer (`config_optimize_entities.yml`)
+### Block Limiter (`chunk_block_limits.yml`) - NEW
+
+Controls how many blocks of each type can be placed within a radius.
+
+```yaml
+enabled: true
+
+# Radius in blocks (same system as entity limiter)
+radius: 56
+
+# Worlds where limiter is active
+worlds:
+  - world
+  - world_nether
+  - world_the_end
+
+# Message when placement is denied
+deny-message: "&cYou cannot place more {block} in this area! &7(Limit: {limit})"
+
+# Bypass permission
+bypass-permission: "serverbooster.blocklimits.bypass"
+
+# Block limits within radius
+limits:
+  # === Predefined Categories ===
+  armor-stands: 4
+  item-frames: 4
+  glow-item-frames: 4
+  paintings: 4
+
+  # Storage
+  chests: 4
+  shulker-boxes: 8
+  barrels: 4
+  ender-chests: 2
+
+  # Redstone (lag sources)
+  hoppers: 8
+  pistons: 8
+  observers: 8
+  dispensers: 4
+  droppers: 4
+  comparators: 8
+  repeaters: 16
+
+  # Workstations
+  crafting-tables: 4
+  furnaces: 4
+  anvils: 2
+  brewing-stands: 4
+
+  # === Custom Materials ===
+  # Add ANY block using its Material name!
+  TNT: 4
+  SPAWNER: 2
+  JUKEBOX: 4
+  NOTE_BLOCK: 8
+  BELL: 2
+
+# Global limits for building blocks
+global-limits:
+  enabled: true
+  default-limit: 120    # Default for unlisted blocks
+
+  limits:
+    stone-variants: 256   # Stone, cobblestone, granite, etc.
+    wood-variants: 256    # All wood types
+    terracotta: 128       # All terracotta colors
+    concrete: 128         # All concrete colors
+    glass: 128            # All glass types
+    wool: 128             # All wool colors
+```
+
+#### Adding Custom Blocks
+
+You can limit ANY block by using its exact Material name:
+
+```yaml
+limits:
+  # Predefined categories
+  hoppers: 8
+  pistons: 8
+
+  # Custom blocks - use exact Material names (UPPERCASE)
+  TNT: 4
+  SPAWNER: 2
+  JUKEBOX: 4
+  NOTE_BLOCK: 8
+  BEACON: 1
+  CONDUIT: 1
+  LODESTONE: 2
+  RESPAWN_ANCHOR: 2
+  CAMPFIRE: 4
+  SOUL_CAMPFIRE: 4
+```
+
+> **Material Names**: Use exact Bukkit material names in UPPERCASE with underscores.
+> Full list: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Material.html
+
+#### Important Notes
+
+- **Non-Destructive**: Existing blocks that exceed limits are NEVER removed
+- **Placement Only**: Limits only apply when placing NEW blocks
+- **Bypass Permission**: `serverbooster.blocklimits.bypass`
+
+### Entity Optimizer (`config_optimize_entities.yml`)
 
 Controls entity AI freezing and tracking.
 
@@ -219,7 +351,7 @@ trigger-options:
 - **Always**: Constantly optimizes entities far from players
 - **When TPS Below**: More aggressive optimization during lag
 
-### 📄 Item Stacking (`config_holo.yml`)
+### Item Stacking (`config_holo.yml`)
 
 Controls item merging and hologram display.
 
@@ -249,7 +381,7 @@ blacklist:
   - ELYTRA
 ```
 
-### 📄 Chunk Optimizer (`chunks_optimizer.yml`)
+### Chunk Optimizer (`chunks_optimizer.yml`)
 
 Controls chunk unloading and physics detection.
 
@@ -283,7 +415,7 @@ optimize-elytra:
     delay: 60
 ```
 
-### 📄 TPS Commands (`config_tps.yml`)
+### TPS Commands (`config_tps.yml`)
 
 Execute commands automatically when TPS drops.
 
@@ -313,22 +445,60 @@ tps-commands:
 
 ---
 
-## 💻 Commands
+## Commands
 
 | Command | Permission | Description |
 |---------|------------|-------------|
 | `/sb reload` | `serverbooster.reload` | Reload all configurations |
-| `/sb info` | - | Show plugin information |
+| `/sb info` | - | Show plugin information and modules |
 | `/sb tps` | - | Display current server TPS |
 | `/sb count [world]` | `serverbooster.mobs.count` | Count entities in world |
 | `/sb limits` | `serverbooster.mobs.limits` | Show entity limits |
 | `/sb check [player]` | `serverbooster.mobs.check` | Check entities near player |
 | `/sb optimize` | `serverbooster.optimize` | Force entity optimization |
 | `/sb blockphysics` | `serverbooster.chunks.blockphysics` | Show physics report |
+| `/sb detect spawners [type]` | `serverbooster.detect` | Detect spawners near players |
+| `/sb detect redstone` | `serverbooster.detect` | Detect redstone mechanisms |
+
+### Detection Commands
+
+The detection system uses async coroutines to scan loaded chunks near online players:
+
+**Spawner Detection** (`/sb detect spawners [entity_type]`)
+```
+/sb detect spawners          # Find all spawners
+/sb detect spawners zombie   # Find only zombie spawners
+/sb detect spawners skeleton # Find only skeleton spawners
+```
+- Scans within 50 blocks of online players
+- Shows spawner type, location, and nearby entities
+- Indicates if spawner is ACTIVE (player within 16 blocks)
+- Provides teleport commands for easy navigation
+
+**Redstone Detection** (`/sb detect redstone`)
+- Finds high-activity components (observers, pistons, hoppers)
+- Shows density of redstone components nearby
+- Color-coded: Green (low), Yellow (medium), Red (high)
+- Helps identify potential lag machines
 
 ---
 
-## 🎯 Performance Tips
+## Permissions
+
+| Permission | Description |
+|------------|-------------|
+| `serverbooster.reload` | Reload plugin configuration |
+| `serverbooster.mobs.count` | Use `/sb count` command |
+| `serverbooster.mobs.limits` | Use `/sb limits` command |
+| `serverbooster.mobs.check` | Use `/sb check` command |
+| `serverbooster.optimize` | Use `/sb optimize` command |
+| `serverbooster.chunks.blockphysics` | Use `/sb blockphysics` command |
+| `serverbooster.detect` | Use `/sb detect` commands |
+| `serverbooster.blocklimits.bypass` | Bypass block placement limits |
+
+---
+
+## Performance Tips
 
 ### For Maximum Performance
 
@@ -364,15 +534,25 @@ tps-commands:
      max_stack: 1024
    ```
 
+5. **Limit Redstone Machines**
+   ```yaml
+   # In chunk_block_limits.yml
+   limits:
+     hoppers: 8
+     pistons: 8
+     observers: 8
+     comparators: 8
+   ```
+
 ### Server Type Recommendations
 
-| Server Type | Chunk Unloader | Entity Limiter | Item Stacking |
-|-------------|----------------|----------------|---------------|
-| **Survival** | ✅ Enable | Medium limits | ✅ Enable |
-| **SMP** | ✅ Enable | Relaxed limits | ✅ Enable |
-| **Skyblock** | ⚠️ Careful | Strict limits | ✅ Enable |
-| **Factions** | ✅ Enable | Strict limits | ✅ Enable |
-| **Creative** | ❌ Disable | ❌ Disable | Optional |
+| Server Type | Chunk Unloader | Entity Limiter | Block Limiter | Item Stacking |
+|-------------|----------------|----------------|---------------|---------------|
+| **Survival** | Enable | Medium | Medium | Enable |
+| **SMP** | Enable | Relaxed | Relaxed | Enable |
+| **Skyblock** | Careful | Strict | Strict | Enable |
+| **Factions** | Enable | Strict | Strict | Enable |
+| **Creative** | Disable | Disable | Disable | Optional |
 
 ### Understanding Chunk Behavior
 
@@ -383,18 +563,18 @@ tps-commands:
 
 ---
 
-## 🌍 Language Support
+## Language Support
 
 ServerBooster supports multiple languages:
 
-- 🇺🇸 English (`en_us`)
-- 🇪🇸 Spanish (`es_es`)
+- English (`en_us`)
+- Spanish (`es_es`)
 
 To change language, edit the `lang` option in each config file.
 
 ---
 
-## 🔄 Migration from Original ServerBooster
+## Migration from Original ServerBooster
 
 If you're upgrading from the original ServerBooster:
 
@@ -403,11 +583,11 @@ If you're upgrading from the original ServerBooster:
 3. **Install** this remastered version
 4. **Reconfigure** using this guide
 
-> ⚠️ Configuration format has changed significantly. Manual migration is required.
+> Configuration format has changed significantly. Manual migration is required.
 
 ---
 
-## ❓ FAQ
+## FAQ
 
 **Q: Does this work with Folia?**
 > Yes! ServerBooster automatically detects Folia and uses region-based scheduling.
@@ -418,15 +598,26 @@ If you're upgrading from the original ServerBooster:
 **Q: Does item stacking cause duplication?**
 > No! The stacking system has been thoroughly tested to prevent any duplication.
 
+**Q: What happens to existing blocks that exceed limits?**
+> Nothing! Existing blocks are NEVER removed. Limits only apply to NEW placements.
+
 **Q: Why don't I see chunks being unloaded?**
 > On Paper 1.21+, the server already unloads chunks very efficiently. The optimizer works best when players are online and have moved away from areas.
 
 **Q: Can I disable specific modules?**
 > Yes! Set `enabled: false` in each module's config file, then `/sb reload`.
 
+**Q: How do I add a custom block to the limiter?**
+> Add the Material name directly to the `limits` section in `chunk_block_limits.yml`:
+> ```yaml
+> limits:
+>   TNT: 4
+>   SPAWNER: 2
+> ```
+
 ---
 
-## 📊 Benchmarks
+## Benchmarks
 
 Tested on a server with 50 players:
 
@@ -441,14 +632,14 @@ Tested on a server with 50 players:
 
 ---
 
-## 🤝 Support
+## Support
 
 - **Issues**: [GitHub Issues](https://github.com/SrCodexStudio/ServerBooster/issues)
 - **Discord**: Coming soon
 
 ---
 
-## 📜 Credits
+## Credits
 
 - **Original Author**: LoneDev (dev.lone)
 - **Remastered by**: [SrCodex](https://github.com/SrCodexStudio)
@@ -457,9 +648,9 @@ Tested on a server with 50 players:
 ---
 
 <p align="center">
-  <strong>⚡ Boost Your Server Today! ⚡</strong>
+  <strong>Boost Your Server Today!</strong>
 </p>
 
 <p align="center">
-  <sub>Made with ❤️ for the Minecraft community</sub>
+  <sub>Made with care for the Minecraft community</sub>
 </p>
