@@ -1,0 +1,30 @@
+# English Language File for ServerBooster
+# Translation: English (US)
+
+prefix: "&8[&bServerBooster&8]&r "
+
+# General messages
+reload-success: "&aConfiguration reloaded successfully!"
+no-permission: "&cYou don't have permission to use this command."
+
+# Entity limiter messages
+entity-spawn-denied: "&7Entity spawn denied: &f{type} &7at &f{location}"
+entity-removed-age: "&7Entity removed (age limit): &f{type}"
+entity-removed-cull: "&7Entity removed (cull): &f{type}"
+
+# Optimization messages
+optimization-started: "&eStarting entity optimization..."
+optimization-complete: "&aOptimization complete! Optimized &f{count} &aentities."
+entities-optimized: "&7Optimized &f{count} &7entities in &f{world}"
+entities-restored: "&7Restored &f{count} &7entities in &f{world}"
+
+# TPS messages
+tps-current: "&7Current TPS: &f{tps}"
+tps-low-warning: "&cWarning: Server TPS is low ({tps})"
+
+# Chunk messages
+chunks-unloaded: "&7Unloaded &f{count} &7unused chunks"
+
+# Block physics messages
+block-physics-warning: "&cPotential lag machine detected at &f{location}"
+block-physics-excessive: "&cExcessive block physics updates in chunk &f{chunk}"

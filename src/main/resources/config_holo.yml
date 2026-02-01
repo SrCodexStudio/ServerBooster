@@ -1,0 +1,30 @@
+lang: "en_us"
+enabled: true
+
+# Which worlds do you want these options to be applied
+worlds:
+  - world
+  - world_nether
+  - world_the_end
+
+merge:
+  force_merge:
+    enabled: true
+    radius: 7
+    more_precise_item_similarity_check__ENABLE_ONLY_IF_ANY_DUPE_PROBLEM: false
+    max_stack:
+      custom_amount: 512
+  merge_only_player_drops: false
+  hologram:
+    enabled: true
+    format: "&f{name} &bx{amount}"
+    glow:
+      enabled: true
+      color: "AQUA"
+      only_player_dropped_items: true
+  blacklist:
+    - BEDROCK
+
+pickup_delay:
+  legit_stacks: 2
+  unstackable_items_stacks: 2
