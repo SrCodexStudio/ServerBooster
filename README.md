@@ -449,9 +449,10 @@ tps-commands:
 
 | Command | Permission | Description |
 |---------|------------|-------------|
+| `/sb help` | `serverbooster.help` | Show available commands |
+| `/sb info` | `serverbooster.info` | Show plugin information and modules |
+| `/sb tps` | `serverbooster.tps` | Display current server TPS |
 | `/sb reload` | `serverbooster.reload` | Reload all configurations |
-| `/sb info` | - | Show plugin information and modules |
-| `/sb tps` | - | Display current server TPS |
 | `/sb count [world]` | `serverbooster.mobs.count` | Count entities in world |
 | `/sb limits` | `serverbooster.mobs.limits` | Show entity limits |
 | `/sb check [player]` | `serverbooster.mobs.check` | Check entities near player |
@@ -487,6 +488,9 @@ The detection system uses async coroutines to scan loaded chunks near online pla
 
 | Permission | Description |
 |------------|-------------|
+| `serverbooster.help` | Use `/sb help` command |
+| `serverbooster.info` | Use `/sb info` command |
+| `serverbooster.tps` | Use `/sb tps` command |
 | `serverbooster.reload` | Reload plugin configuration |
 | `serverbooster.mobs.count` | Use `/sb count` command |
 | `serverbooster.mobs.limits` | Use `/sb limits` command |
@@ -495,6 +499,8 @@ The detection system uses async coroutines to scan loaded chunks near online pla
 | `serverbooster.chunks.blockphysics` | Use `/sb blockphysics` command |
 | `serverbooster.detect` | Use `/sb detect` commands |
 | `serverbooster.blocklimits.bypass` | Bypass block placement limits |
+
+> **Note**: All commands require permissions. Normal players cannot use any ServerBooster commands by default.
 
 ---
 
