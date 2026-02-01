@@ -175,16 +175,18 @@ class UpdateChecker(private val plugin: ServerBoosterPlugin) : Listener {
 
     /**
      * Notifies the console about the available update.
+     * Uses ConsoleSender for proper color support in console.
      */
     private fun notifyConsole() {
         SchedulerUtil.runTask {
-            plugin.logger.info("")
-            plugin.logger.info("  ${ChatColor.GREEN}${ChatColor.BOLD}Update Available!")
-            plugin.logger.info("")
-            plugin.logger.info("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}Current: ${ChatColor.RED}v$currentVersion")
-            plugin.logger.info("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}Latest:  ${ChatColor.GREEN}v$latestVersion")
-            plugin.logger.info("  ${ChatColor.DARK_GRAY}- ${ChatColor.AQUA}Download: ${ChatColor.WHITE}$downloadUrl")
-            plugin.logger.info("")
+            val console = Bukkit.getConsoleSender()
+            console.sendMessage("")
+            console.sendMessage("$prefix${ChatColor.GREEN}${ChatColor.BOLD}Update Available!")
+            console.sendMessage("")
+            console.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}Current: ${ChatColor.RED}v$currentVersion")
+            console.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}Latest:  ${ChatColor.GREEN}v$latestVersion")
+            console.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.AQUA}Download: ${ChatColor.WHITE}$downloadUrl")
+            console.sendMessage("")
         }
     }
 
