@@ -2,7 +2,7 @@
   <img src="https://img.shields.io/badge/Minecraft-1.17.x--1.21.x-brightgreen?style=for-the-badge&logo=minecraft" alt="Minecraft Version"/>
   <img src="https://img.shields.io/badge/Platform-Spigot%20%7C%20Paper%20%7C%20Folia-blue?style=for-the-badge" alt="Platform"/>
   <img src="https://img.shields.io/badge/Language-Kotlin-purple?style=for-the-badge&logo=kotlin" alt="Language"/>
-  <img src="https://img.shields.io/github/license/SrCodexStudio/ServerBooster?style=for-the-badge" alt="License"/>
+  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License"/>
 </p>
 
 <h1 align="center">⚡ ServerBooster ⚡</h1>
