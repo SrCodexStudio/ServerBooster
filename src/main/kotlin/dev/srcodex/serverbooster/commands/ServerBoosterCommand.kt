@@ -30,6 +30,7 @@ class ServerBoosterCommand(private val plugin: ServerBoosterPlugin) : CommandExe
             "detect" -> handleDetect(sender, args)
             "tps" -> handleTps(sender)
             "info" -> handleInfo(sender)
+            "update" -> handleUpdate(sender)
             "help" -> showHelp(sender)
             else -> {
                 sender.sendMessage("${prefix}${ChatColor.RED}Unknown command. Use /sb help")
@@ -57,6 +58,7 @@ class ServerBoosterCommand(private val plugin: ServerBoosterPlugin) : CommandExe
         sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}/sb optimize ${ChatColor.GRAY}- Force optimization")
         sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}/sb blockphysics ${ChatColor.GRAY}- Block physics report")
         sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}/sb detect <type> ${ChatColor.GRAY}- Detect mechanisms")
+        sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}/sb update ${ChatColor.GRAY}- Check for updates")
         sender.sendMessage("")
     }
 
@@ -459,6 +461,49 @@ class ServerBoosterCommand(private val plugin: ServerBoosterPlugin) : CommandExe
         sender.sendMessage("")
     }
 
+    private fun handleUpdate(sender: CommandSender) {
+        if (!sender.hasPermission("serverbooster.admin")) {
+            sender.sendMessage("${prefix}${ChatColor.RED}You don't have permission!")
+            return
+        }
+
+        val updateChecker = plugin.updateChecker
+        if (updateChecker == null) {
+            sender.sendMessage("${prefix}${ChatColor.RED}Update checker is not available!")
+            return
+        }
+
+        sender.sendMessage("${prefix}${ChatColor.YELLOW}Checking for updates...")
+
+        scope.launch {
+            // Force check
+            val result = updateChecker.forceCheck()
+
+            // Get status after check
+            kotlinx.coroutines.delay(2000) // Wait for async check
+
+            val status = updateChecker.getStatus()
+
+            dev.srcodex.serverbooster.util.SchedulerUtil.runTask {
+                if (status.updateAvailable && status.latestVersion != null) {
+                    sender.sendMessage("")
+                    sender.sendMessage("${ChatColor.DARK_GRAY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                    sender.sendMessage("${prefix}${ChatColor.GREEN}${ChatColor.BOLD}Update Available!")
+                    sender.sendMessage("")
+                    sender.sendMessage("  ${ChatColor.DARK_GRAY}▸ ${ChatColor.YELLOW}Current: ${ChatColor.RED}v${status.currentVersion}")
+                    sender.sendMessage("  ${ChatColor.DARK_GRAY}▸ ${ChatColor.YELLOW}Latest:  ${ChatColor.GREEN}v${status.latestVersion}")
+                    sender.sendMessage("")
+                    sender.sendMessage("  ${ChatColor.DARK_GRAY}▸ ${ChatColor.AQUA}Download:")
+                    sender.sendMessage("  ${ChatColor.GRAY}${status.downloadUrl ?: "https://github.com/SrCodexStudio/ServerBooster/releases"}")
+                    sender.sendMessage("${ChatColor.DARK_GRAY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                    sender.sendMessage("")
+                } else {
+                    sender.sendMessage("${prefix}${ChatColor.GREEN}You are running the latest version! ${ChatColor.GRAY}(v${status.currentVersion})")
+                }
+            }
+        }
+    }
+
     override fun onTabComplete(
         sender: CommandSender,
         command: Command,
@@ -466,7 +511,7 @@ class ServerBoosterCommand(private val plugin: ServerBoosterPlugin) : CommandExe
         args: Array<out String>
     ): List<String> {
         if (args.size == 1) {
-            return listOf("reload", "info", "tps", "count", "limits", "check", "optimize", "blockphysics", "detect", "help")
+            return listOf("reload", "info", "tps", "count", "limits", "check", "optimize", "blockphysics", "detect", "update", "help")
                 .filter { it.startsWith(args[0].lowercase()) }
         }
 

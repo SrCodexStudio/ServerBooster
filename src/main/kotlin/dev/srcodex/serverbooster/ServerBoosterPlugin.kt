@@ -15,6 +15,7 @@ import dev.srcodex.serverbooster.optimizer.EntityOptimizer
 import dev.srcodex.serverbooster.optimizer.TpsCommandExecutor
 import dev.srcodex.serverbooster.util.MinecraftVersion
 import dev.srcodex.serverbooster.util.SchedulerUtil
+import dev.srcodex.serverbooster.util.UpdateChecker
 import kotlinx.coroutines.*
 import org.bukkit.Bukkit
 import org.bukkit.plugin.java.JavaPlugin
@@ -61,6 +62,8 @@ class ServerBoosterPlugin : JavaPlugin() {
     var detectionManager: DetectionManager? = null
         private set
     var chunkBlockLimiter: ChunkBlockLimiter? = null
+        private set
+    var updateChecker: UpdateChecker? = null
         private set
 
     // Version flags
@@ -129,6 +132,10 @@ class ServerBoosterPlugin : JavaPlugin() {
             logger.info("ServerBooster v${description.version} has been enabled!")
             logger.info("Modules enabled: ${getEnabledModules().joinToString(", ")}")
 
+            // Initialize Update Checker (check for new versions on GitHub)
+            updateChecker = UpdateChecker(this)
+            updateChecker?.start()
+
         } catch (e: Exception) {
             logger.log(Level.SEVERE, "Failed to enable ServerBooster", e)
             server.pluginManager.disablePlugin(this)
@@ -145,6 +152,7 @@ class ServerBoosterPlugin : JavaPlugin() {
         chunkOptimizer?.shutdown()
         detectionManager?.shutdown()
         chunkBlockLimiter?.unregister()
+        updateChecker?.shutdown()
 
         // Restore entities AI
         if (entityOptimizer != null && !isReloading()) {
