@@ -69,14 +69,15 @@ class UpdateChecker(private val plugin: ServerBoosterPlugin) : Listener {
 
     /**
      * Checks GitHub API for the latest release version.
+     * @param notifyOnUpdate If true, sends notification to console when update is found
      */
-    private suspend fun checkForUpdates() {
+    private suspend fun checkForUpdates(notifyOnUpdate: Boolean = true) {
         try {
             val response = fetchLatestRelease()
             if (response != null) {
                 parseReleaseInfo(response)
 
-                if (updateAvailable) {
+                if (updateAvailable && notifyOnUpdate) {
                     notifyConsole()
                 }
             }
@@ -226,10 +227,11 @@ class UpdateChecker(private val plugin: ServerBoosterPlugin) : Listener {
 
     /**
      * Force check for updates (can be called from command).
+     * Does not send console notification - caller handles messaging.
      */
     fun forceCheck(): String {
         scope.launch {
-            checkForUpdates()
+            checkForUpdates(notifyOnUpdate = false)
         }
 
         return if (updateAvailable) {
