@@ -1,0 +1,46 @@
+slow-down-chunk-packets:
+  when-tps-below:
+    enabled: true
+    value: 19
+  when-high-player-ping:
+    enabled: true
+    value: 150
+  worlds:
+    - world
+    - world_nether
+    - world_the_end
+
+block-physics-lag-detector:
+  enabled: true
+  low-tps: 18
+  lag:
+    warning-threshold: 950000
+    notify-op: true
+    cancel-event: false
+  worlds:
+    - world
+    - world_nether
+    - world_the_end
+
+unload-chunks:
+  enabled: true
+  interval-ticks: 6000
+  log:
+    unload: true
+  worlds:
+    - world
+    - world_nether
+    - world_the_end
+
+optimize-elytra:
+  reptide-trident-nerf:
+    enabled: true
+    delay: 100
+  firework-nerf:
+    enabled: true
+    delay: 60
+  log: false
+  worlds:
+    - world
+    - world_nether
+    - world_the_end

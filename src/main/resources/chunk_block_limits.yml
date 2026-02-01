@@ -1,0 +1,131 @@
+# ============================================
+# Block Limits Configuration
+# ============================================
+# This module limits how many blocks of each type
+# can be placed within a radius to improve server performance.
+#
+# NOTE: Existing blocks that exceed limits will NOT be removed.
+# The limit only applies when placing NEW blocks.
+# ============================================
+
+enabled: true
+
+# Radius in blocks to check for blocks (same as entity limiter)
+radius: 56
+
+# Worlds where this limiter is active
+worlds:
+  - world
+  - world_nether
+  - world_the_end
+
+# Message sent when player tries to place a block over the limit
+# Placeholders: {block}, {limit}, {current}, {radius}
+deny-message: "&cYou cannot place more {block} in this area! &7(Limit: {limit})"
+
+# ============================================
+# RADIUS LIMITS
+# ============================================
+# Maximum blocks of each type within the radius
+# Set to -1 to disable limit for that block type
+#
+# You can use:
+# 1. Predefined categories (groups multiple blocks):
+#    - "hoppers", "pistons", "furnaces", "shulker-boxes", etc.
+#
+# 2. Direct material names (for specific blocks):
+#    - "TNT", "SPAWNER", "JUKEBOX", "NOTE_BLOCK", etc.
+#    - Use exact Minecraft material names (uppercase with underscores)
+#    - List: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Material.html
+#
+# Example to add custom blocks:
+#   TNT: 4
+#   SPAWNER: 2
+#   NOTE_BLOCK: 8
+# ============================================
+
+limits:
+  # Entities that are placed as blocks
+  armor-stands: 4
+  item-frames: 4
+  glow-item-frames: 4
+  paintings: 4
+
+  # Storage blocks
+  chests: 4           # Includes single and double chests
+  trapped-chests: 4
+  barrels: 4
+  shulker-boxes: 8    # All colors count together
+  ender-chests: 2
+
+  # Redstone components (potential lag sources)
+  hoppers: 8
+  pistons: 8          # Includes sticky pistons
+  observers: 8
+  dispensers: 4
+  droppers: 4
+  redstone-blocks: 8
+  comparators: 8
+  repeaters: 16
+  daylight-detectors: 4
+  target-blocks: 4
+
+  # Workstations
+  crafting-tables: 4
+  furnaces: 4         # Includes blast furnace, smoker
+  anvils: 2           # Includes chipped and damaged
+  enchanting-tables: 2
+  brewing-stands: 4
+  grindstones: 2
+  cartography-tables: 2
+  fletching-tables: 2
+  smithing-tables: 2
+  looms: 2
+  stonecutters: 2
+  lecterns: 4
+
+  # Lighting (can cause lag in large quantities)
+  beacons: 1
+  conduits: 1
+  end-rods: 16
+
+  # Mob spawning related
+  beds: 8             # All colors count together
+  respawn-anchors: 2
+
+  # Signs (text rendering)
+  signs: 16           # All sign types count together
+  hanging-signs: 8
+
+# ============================================
+# GLOBAL LIMITS
+# ============================================
+# Maximum blocks of generic types PER CHUNK
+# These are broader categories for common blocks
+# Set to -1 to disable
+# ============================================
+
+global-limits:
+  enabled: true      # Enable/disable global limits
+  default-limit: 120  # Default limit for unlisted blocks
+
+  # Specific global limits (overrides default)
+  limits:
+    # Building blocks
+    stone-variants: 256     # Stone, cobblestone, etc.
+    wood-variants: 256      # All wood types
+    terracotta: 128         # All terracotta colors
+    concrete: 128           # All concrete colors
+    glass: 128              # All glass types
+    wool: 128               # All wool colors
+
+# ============================================
+# BYPASS PERMISSION
+# ============================================
+# Players with this permission bypass all limits
+bypass-permission: "serverbooster.blocklimits.bypass"
+
+# ============================================
+# DEBUG MODE
+# ============================================
+debug: false
