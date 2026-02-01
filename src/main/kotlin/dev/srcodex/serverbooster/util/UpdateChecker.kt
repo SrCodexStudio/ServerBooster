@@ -178,14 +178,13 @@ class UpdateChecker(private val plugin: ServerBoosterPlugin) : Listener {
      */
     private fun notifyConsole() {
         SchedulerUtil.runTask {
-            plugin.logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-            plugin.logger.info("         ${ChatColor.GREEN}${ChatColor.BOLD}UPDATE AVAILABLE!")
             plugin.logger.info("")
-            plugin.logger.info("  ${ChatColor.YELLOW}Current: ${ChatColor.RED}v$currentVersion")
-            plugin.logger.info("  ${ChatColor.YELLOW}Latest:  ${ChatColor.GREEN}v$latestVersion")
+            plugin.logger.info("  ${ChatColor.GREEN}${ChatColor.BOLD}Update Available!")
             plugin.logger.info("")
-            plugin.logger.info("  ${ChatColor.AQUA}Download: ${ChatColor.WHITE}$downloadUrl")
-            plugin.logger.info("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            plugin.logger.info("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}Current: ${ChatColor.RED}v$currentVersion")
+            plugin.logger.info("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}Latest:  ${ChatColor.GREEN}v$latestVersion")
+            plugin.logger.info("  ${ChatColor.DARK_GRAY}- ${ChatColor.AQUA}Download: ${ChatColor.WHITE}$downloadUrl")
+            plugin.logger.info("")
         }
     }
 
@@ -197,15 +196,11 @@ class UpdateChecker(private val plugin: ServerBoosterPlugin) : Listener {
         if (!player.isOp && !player.hasPermission("serverbooster.admin")) return
 
         player.sendMessage("")
-        player.sendMessage("${ChatColor.DARK_GRAY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
         player.sendMessage("$prefix${ChatColor.GREEN}${ChatColor.BOLD}Update Available!")
         player.sendMessage("")
-        player.sendMessage("${ChatColor.DARK_GRAY}  ▸ ${ChatColor.YELLOW}Current: ${ChatColor.RED}v$currentVersion")
-        player.sendMessage("${ChatColor.DARK_GRAY}  ▸ ${ChatColor.YELLOW}Latest:  ${ChatColor.GREEN}v$latestVersion")
-        player.sendMessage("")
-        player.sendMessage("${ChatColor.DARK_GRAY}  ▸ ${ChatColor.AQUA}Download:")
-        player.sendMessage("${ChatColor.GRAY}    $downloadUrl")
-        player.sendMessage("${ChatColor.DARK_GRAY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+        player.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}Current: ${ChatColor.RED}v$currentVersion")
+        player.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}Latest:  ${ChatColor.GREEN}v$latestVersion")
+        player.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.AQUA}Download: ${ChatColor.GRAY}$downloadUrl")
         player.sendMessage("")
     }
 

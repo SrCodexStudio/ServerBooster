@@ -487,18 +487,18 @@ class ServerBoosterCommand(private val plugin: ServerBoosterPlugin) : CommandExe
             dev.srcodex.serverbooster.util.SchedulerUtil.runTask {
                 if (status.updateAvailable && status.latestVersion != null) {
                     sender.sendMessage("")
-                    sender.sendMessage("${ChatColor.DARK_GRAY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                    sender.sendMessage("${prefix}${ChatColor.GREEN}${ChatColor.BOLD}Update Available!")
+                    sender.sendMessage("  ${ChatColor.GREEN}${ChatColor.BOLD}Update Available!")
                     sender.sendMessage("")
-                    sender.sendMessage("  ${ChatColor.DARK_GRAY}▸ ${ChatColor.YELLOW}Current: ${ChatColor.RED}v${status.currentVersion}")
-                    sender.sendMessage("  ${ChatColor.DARK_GRAY}▸ ${ChatColor.YELLOW}Latest:  ${ChatColor.GREEN}v${status.latestVersion}")
-                    sender.sendMessage("")
-                    sender.sendMessage("  ${ChatColor.DARK_GRAY}▸ ${ChatColor.AQUA}Download:")
-                    sender.sendMessage("  ${ChatColor.GRAY}${status.downloadUrl ?: "https://github.com/SrCodexStudio/ServerBooster/releases"}")
-                    sender.sendMessage("${ChatColor.DARK_GRAY}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+                    sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}Current: ${ChatColor.RED}v${status.currentVersion}")
+                    sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}Latest:  ${ChatColor.GREEN}v${status.latestVersion}")
+                    sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.AQUA}Download: ${ChatColor.GRAY}${status.downloadUrl ?: "https://github.com/SrCodexStudio/ServerBooster/releases"}")
                     sender.sendMessage("")
                 } else {
-                    sender.sendMessage("${prefix}${ChatColor.GREEN}You are running the latest version! ${ChatColor.GRAY}(v${status.currentVersion})")
+                    sender.sendMessage("")
+                    sender.sendMessage("  ${ChatColor.GREEN}${ChatColor.BOLD}Up to Date!")
+                    sender.sendMessage("")
+                    sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.GRAY}You are running the latest version ${ChatColor.WHITE}(v${status.currentVersion})")
+                    sender.sendMessage("")
                 }
             }
         }
