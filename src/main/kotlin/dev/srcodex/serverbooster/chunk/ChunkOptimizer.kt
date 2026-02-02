@@ -292,18 +292,20 @@ class ChunkOptimizer(private val plugin: ServerBoosterPlugin) : Listener {
             // Verificacion 4: Ha estado inactivo el tiempo suficiente
             if (!isChunkInactive(chunk, world.name, now)) continue
 
-            // INTENTAR DESCARGAR - Paper decide si acepta (igual que NebulaBooster)
+            // INTENTAR DESCARGAR usando unloadChunkRequest (método del plugin original)
+            // Este método es deprecated pero es más "suave" - solo hace una solicitud
             try {
-                if (chunk.unload(true)) {
+                @Suppress("DEPRECATION")
+                if (world.unloadChunkRequest(chunk.x, chunk.z)) {
                     val key = createChunkKey(chunk.x, chunk.z, world.name)
                     chunkLastActivity.remove(key)
                     unloaded++
 
                     if (debugMode) {
-                        plugin.logger.info("[ChunkOptimizer] Unloaded chunk ${chunk.x},${chunk.z} in ${world.name}")
+                        plugin.logger.info("[ChunkOptimizer] Unload requested for chunk ${chunk.x},${chunk.z} in ${world.name}")
                     }
                 }
-                // Si Paper rechaza, continuamos silenciosamente (comportamiento NebulaBooster)
+                // Si el servidor rechaza, continuamos silenciosamente
             } catch (e: Exception) {
                 // Continuar con otros chunks
             }
@@ -498,14 +500,15 @@ class ChunkOptimizer(private val plugin: ServerBoosterPlugin) : Listener {
                 if (chunk.isForceLoaded) continue
                 if (!isChunkFarFromPlayers(chunk, playerPositions)) continue
 
-                // INTENTAR DESCARGAR - Paper decide si acepta
+                // INTENTAR DESCARGAR usando unloadChunkRequest (método del plugin original)
                 try {
-                    if (chunk.unload(true)) {
+                    @Suppress("DEPRECATION")
+                    if (world.unloadChunkRequest(chunk.x, chunk.z)) {
                         val key = createChunkKey(chunk.x, chunk.z, worldName)
                         chunkLastActivity.remove(key)
                         totalUnloaded++
                     }
-                    // Si Paper rechaza, simplemente continuamos (igual que NebulaBooster)
+                    // Si el servidor rechaza, simplemente continuamos
                 } catch (e: Exception) {
                     // Ignorar errores, continuar
                 }
