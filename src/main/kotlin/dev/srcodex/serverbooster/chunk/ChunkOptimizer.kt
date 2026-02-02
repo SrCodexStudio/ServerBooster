@@ -74,12 +74,7 @@ class ChunkOptimizer(private val plugin: ServerBoosterPlugin) {
      * Uses batching and yields to prevent lag
      */
     private fun processChunkUnload() {
-        // Skip if no players online - spawn chunks stay loaded anyway
-        // and there's no point in repeatedly trying to unload them
-        if (Bukkit.getOnlinePlayers().isEmpty()) {
-            return
-        }
-
+        val hasPlayersOnline = Bukkit.getOnlinePlayers().isNotEmpty()
         var totalUnloaded = 0
 
         for (world in Bukkit.getWorlds()) {
@@ -143,8 +138,9 @@ class ChunkOptimizer(private val plugin: ServerBoosterPlugin) {
             }
         }
 
-        // Simple logging - only show when chunks were actually unloaded
-        if (config.unloadChunksLog && totalUnloaded > 0) {
+        // Simple logging - only show when chunks were actually unloaded AND players are online
+        // This prevents log spam when server is empty (spawn chunks can't be unloaded anyway)
+        if (config.unloadChunksLog && totalUnloaded > 0 && hasPlayersOnline) {
             plugin.logger.info("Unloaded $totalUnloaded chunks")
         }
     }
@@ -230,12 +226,6 @@ class ChunkOptimizer(private val plugin: ServerBoosterPlugin) {
      * Force unload all eligible chunks immediately
      */
     fun forceUnload(): Int {
-        // Skip if no players online - only spawn chunks would be loaded
-        // and those shouldn't be unloaded
-        if (Bukkit.getOnlinePlayers().isEmpty()) {
-            return 0
-        }
-
         var total = 0
 
         for (world in Bukkit.getWorlds()) {
@@ -247,9 +237,6 @@ class ChunkOptimizer(private val plugin: ServerBoosterPlugin) {
                 val chunk = player.location.chunk
                 Pair(chunk.x, chunk.z)
             }
-
-            // Skip world if no players in it
-            if (playerChunks.isEmpty()) continue
 
             for (chunk in world.loadedChunks) {
                 // Skip spawn chunks
