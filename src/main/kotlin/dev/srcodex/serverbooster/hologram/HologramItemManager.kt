@@ -65,6 +65,10 @@ class HologramItemManager(private val plugin: ServerBoosterPlugin) : Listener {
     // Number formatter for large amounts
     private val numberFormat = NumberFormat.getNumberInstance(Locale.US)
 
+    // Throttling for merge operations - prevent excessive coroutine spawning
+    private val pendingMergeItems = ConcurrentHashMap.newKeySet<UUID>()
+    private val maxPendingMerges = 50  // Limit concurrent merge operations
+
     init {
         Bukkit.getPluginManager().registerEvents(this, plugin)
         plugin.logger.info("Hologram Item Manager initialized with unlimited stacking support")
@@ -75,7 +79,9 @@ class HologramItemManager(private val plugin: ServerBoosterPlugin) : Listener {
         scope.cancel()
         processingItems.clear()
         playerDroppedItems.clear()
+        pendingMergeItems.clear()
         translationCache.clear()
+        recentlyProcessedChunks.clear()
     }
 
     // ══════════════════════════════════════════════════════════════════════
@@ -173,13 +179,22 @@ class HologramItemManager(private val plugin: ServerBoosterPlugin) : Listener {
         }
 
         // Try to merge with nearby items (async search, sync merge)
-        scope.launch {
-            delay(50) // Small delay to let other items spawn
-            val nearbyItem = findNearbyMergeableItemAsync(item)
-            if (nearbyItem != null) {
-                SchedulerUtil.runTask {
-                    if (!item.isDead && !nearbyItem.isDead) {
-                        tryMergeItems(item, nearbyItem)
+        // THROTTLED: Only launch if under the pending merge limit
+        if (config.forceMerge.enabled && pendingMergeItems.size < maxPendingMerges) {
+            if (pendingMergeItems.add(item.uniqueId)) {
+                scope.launch {
+                    try {
+                        delay(50) // Small delay to let other items spawn
+                        val nearbyItem = findNearbyMergeableItemAsync(item)
+                        if (nearbyItem != null) {
+                            SchedulerUtil.runTask {
+                                if (!item.isDead && !nearbyItem.isDead) {
+                                    tryMergeItems(item, nearbyItem)
+                                }
+                            }
+                        }
+                    } finally {
+                        pendingMergeItems.remove(item.uniqueId)
                     }
                 }
             }
@@ -209,14 +224,22 @@ class HologramItemManager(private val plugin: ServerBoosterPlugin) : Listener {
 
         updateHologramDisplay(item)
 
-        // Try merge async
-        scope.launch {
-            delay(50)
-            val nearbyItem = findNearbyMergeableItemAsync(item)
-            if (nearbyItem != null) {
-                SchedulerUtil.runTask {
-                    if (!item.isDead && !nearbyItem.isDead) {
-                        tryMergeItems(item, nearbyItem)
+        // Try merge async - THROTTLED
+        if (config.forceMerge.enabled && pendingMergeItems.size < maxPendingMerges) {
+            if (pendingMergeItems.add(item.uniqueId)) {
+                scope.launch {
+                    try {
+                        delay(50)
+                        val nearbyItem = findNearbyMergeableItemAsync(item)
+                        if (nearbyItem != null) {
+                            SchedulerUtil.runTask {
+                                if (!item.isDead && !nearbyItem.isDead) {
+                                    tryMergeItems(item, nearbyItem)
+                                }
+                            }
+                        }
+                    } finally {
+                        pendingMergeItems.remove(item.uniqueId)
                     }
                 }
             }
@@ -377,18 +400,33 @@ class HologramItemManager(private val plugin: ServerBoosterPlugin) : Listener {
         }
     }
 
+    // Throttle chunk load processing
+    private val recentlyProcessedChunks = ConcurrentHashMap<Long, Long>()
+    private val chunkProcessCooldownMs = 5000L  // 5 second cooldown per chunk
+
     @EventHandler(priority = EventPriority.MONITOR)
     fun onChunkLoad(event: ChunkLoadEvent) {
         if (!config.worlds.contains(event.world.name)) return
 
-        // Update holograms for loaded items with PDC data
-        scope.launch {
-            delay(100) // Wait for entities to fully load
-            SchedulerUtil.runTask {
-                for (entity in event.chunk.entities) {
-                    if (entity is Item && hasStackData(entity)) {
-                        updateHologramDisplay(entity)
-                    }
+        // Throttle: Skip if this chunk was recently processed
+        val chunkKey = (event.chunk.x.toLong() shl 32) or (event.chunk.z.toLong() and 0xFFFFFFFFL)
+        val now = System.currentTimeMillis()
+        val lastProcessed = recentlyProcessedChunks[chunkKey] ?: 0L
+        if (now - lastProcessed < chunkProcessCooldownMs) return
+        recentlyProcessedChunks[chunkKey] = now
+
+        // Cleanup old entries periodically (every 100 chunks)
+        if (recentlyProcessedChunks.size > 100) {
+            val cutoff = now - chunkProcessCooldownMs
+            recentlyProcessedChunks.entries.removeIf { it.value < cutoff }
+        }
+
+        // Update holograms for loaded items with PDC data - direct task, no coroutine needed
+        SchedulerUtil.runTaskLater(5L) {  // 5 tick delay instead of 100ms coroutine
+            if (!event.chunk.isLoaded) return@runTaskLater
+            for (entity in event.chunk.entities) {
+                if (entity is Item && hasStackData(entity)) {
+                    updateHologramDisplay(entity)
                 }
             }
         }

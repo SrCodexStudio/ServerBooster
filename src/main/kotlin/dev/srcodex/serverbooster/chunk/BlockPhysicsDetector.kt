@@ -6,6 +6,7 @@ import org.bukkit.Bukkit
 import org.bukkit.Chunk
 import org.bukkit.entity.Player
 import org.bukkit.event.EventHandler
+import org.bukkit.event.EventPriority
 import org.bukkit.event.HandlerList
 import org.bukkit.event.Listener
 import org.bukkit.event.block.BlockPhysicsEvent
@@ -19,6 +20,14 @@ class BlockPhysicsDetector(private val plugin: ServerBoosterPlugin) : Listener {
 
     private val configuredWorlds: Set<String> = config.blockPhysicsWorlds.toSet()
 
+    // Throttling: only process physics events every N milliseconds per chunk
+    private val throttleIntervalMs = 50L  // 50ms = 1 tick
+    private val lastPhysicsTime = ConcurrentHashMap<Long, Long>()
+
+    // Counter for sampling (only count 1 in every N physics events to reduce overhead)
+    private val sampleRate = 10  // Count every 10th event
+    @Volatile private var eventCounter = 0
+
     init {
         Bukkit.getPluginManager().registerEvents(this, plugin)
         startChecking()
@@ -28,6 +37,7 @@ class BlockPhysicsDetector(private val plugin: ServerBoosterPlugin) : Listener {
         HandlerList.unregisterAll(this)
         SchedulerUtil.cancelTask(checkTask)
         chunkPhysics.clear()
+        lastPhysicsTime.clear()
     }
 
     private fun startChecking() {
@@ -35,10 +45,17 @@ class BlockPhysicsDetector(private val plugin: ServerBoosterPlugin) : Listener {
         checkTask = SchedulerUtil.runAsyncTimer(20L, 300L) {
             checkForLagMachines()
         }
+
+        // Cleanup old throttle data every minute
+        SchedulerUtil.runAsyncTimer(1200L, 1200L) {
+            val cutoff = System.currentTimeMillis() - 60_000L
+            lastPhysicsTime.entries.removeIf { it.value < cutoff }
+        }
     }
 
-    @EventHandler
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
     fun onBlockPhysics(event: BlockPhysicsEvent) {
+        // Early exit: Only process when TPS is low
         val tps = plugin.getTps()
         if (tps > config.blockPhysicsLowTps) return
 
@@ -47,11 +64,33 @@ class BlockPhysicsDetector(private val plugin: ServerBoosterPlugin) : Listener {
 
         val chunk = event.block.chunk
         val chunkKey = getChunkKey(chunk)
+        val now = System.currentTimeMillis()
+
+        // Throttle: Skip if we processed this chunk recently
+        val lastTime = lastPhysicsTime[chunkKey] ?: 0L
+        if (now - lastTime < throttleIntervalMs) {
+            // Still count for threshold checking but skip expensive operations
+            val data = chunkPhysics[chunkKey]
+            if (data != null) {
+                // Sample counting to reduce atomic operations
+                if (++eventCounter % sampleRate == 0) {
+                    data.incrementCount(sampleRate)
+                }
+
+                // Cancel if too many updates and configured
+                if (config.blockPhysicsCancelEvent && data.count > config.blockPhysicsWarningThreshold) {
+                    event.isCancelled = true
+                }
+            }
+            return
+        }
+
+        lastPhysicsTime[chunkKey] = now
 
         val data = chunkPhysics.computeIfAbsent(chunkKey) {
             ChunkPhysicsData(chunk)
         }
-        data.incrementCount()
+        data.incrementCount(sampleRate)
 
         // Cancel if too many updates and configured
         if (config.blockPhysicsCancelEvent && data.count > config.blockPhysicsWarningThreshold) {
@@ -128,14 +167,15 @@ class BlockPhysicsDetector(private val plugin: ServerBoosterPlugin) : Listener {
     private data class ChunkPhysicsData(
         val chunk: Chunk
     ) {
+        @Volatile
         var count: Int = 0
             private set
 
         val worldName: String = chunk.world.name
         val coordsString: String = "${chunk.x * 16}, ${chunk.z * 16}"
 
-        fun incrementCount() {
-            count++
+        fun incrementCount(amount: Int = 1) {
+            count += amount
         }
 
         fun resetCount() {

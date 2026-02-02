@@ -101,6 +101,19 @@ class DetectionManager(private val plugin: ServerBoosterPlugin) {
         Material.STICKY_PISTON,
         Material.HOPPER,
         Material.COMPARATOR,
+        Material.REPEATER,
+        Material.DROPPER,
+        Material.DISPENSER
+    )
+
+    // Non-tile entity high-activity redstone (for sample scanning)
+    private val nonTileHighActivityRedstone = setOf(
+        Material.OBSERVER,
+        Material.PISTON,
+        Material.STICKY_PISTON,
+        Material.PISTON_HEAD,
+        Material.MOVING_PISTON,
+        Material.COMPARATOR,
         Material.REPEATER
     )
 
@@ -219,6 +232,9 @@ class DetectionManager(private val plugin: ServerBoosterPlugin) {
 
     /**
      * Detect redstone mechanisms near all online players using coroutines
+     *
+     * OPTIMIZED: Uses tile entities and snapshot scanning instead of iterating every block.
+     * Previous implementation was O(n^3) scanning ALL Y levels which caused severe CPU issues.
      */
     suspend fun detectRedstone(radius: Int = 30): DetectionResult<RedstoneInfo> {
         val startTime = System.currentTimeMillis()
@@ -250,71 +266,34 @@ class DetectionManager(private val plugin: ServerBoosterPlugin) {
         val (players, chunksToScan, playerCount) = scanData
         val foundRedstone = ConcurrentHashMap<String, RedstoneInfo>()
 
-        // Scan chunks for redstone - must be on main thread
+        // OPTIMIZED: Scan chunks for redstone using tile entities first, then sample scan
+        // This avoids the O(n^3) full block scan that was causing CPU issues
         runOnMainThread {
             for (chunk in chunksToScan) {
                 val world = chunk.world
-                val baseX = chunk.x shl 4
-                val baseZ = chunk.z shl 4
 
-                // Only scan high-activity redstone types for performance
-                for (x in 0..15) {
-                    for (z in 0..15) {
-                        for (y in world.minHeight until world.maxHeight) {
+                // First: Check tile entities (hoppers, dispensers, droppers, etc.)
+                // These are the main lag sources and are indexed by the server
+                for (tileEntity in chunk.tileEntities) {
+                    val block = tileEntity.block
+                    if (block.type !in highActivityRedstone) continue
+
+                    processRedstoneBlock(block, players, effectiveRadius, foundRedstone)
+                }
+
+                // Second: Sample scan for non-tile redstone (observers, pistons, etc.)
+                // Only scan every 4th block vertically to reduce CPU usage significantly
+                // Focus on typical build heights (y=0 to y=128 covers most player builds)
+                val minY = maxOf(world.minHeight, -64)
+                val maxY = minOf(world.maxHeight, 128)
+
+                for (x in 0..15 step 2) {  // Sample every 2nd block horizontally
+                    for (z in 0..15 step 2) {
+                        for (y in minY until maxY step 4) {  // Sample every 4th block vertically
                             val block = chunk.getBlock(x, y, z)
-                            if (block.type !in highActivityRedstone) continue
+                            if (block.type !in nonTileHighActivityRedstone) continue
 
-                            val loc = block.location
-                            val key = "${loc.world?.name}:${loc.blockX}:${loc.blockY}:${loc.blockZ}"
-
-                            val nearbyPlayers = players
-                                .filter { it.world == loc.world }
-                                .mapNotNull { player ->
-                                    try {
-                                        val dist = player.location.distance(loc)
-                                        if (dist <= effectiveRadius) {
-                                            PlayerProximity(player.name, dist)
-                                        } else null
-                                    } catch (e: Exception) {
-                                        null
-                                    }
-                                }
-                                .sortedBy { it.distance }
-
-                            if (nearbyPlayers.isNotEmpty()) {
-                                // Count nearby redstone components (density check)
-                                var density = 0
-                                for (dx in -2..2) {
-                                    for (dy in -2..2) {
-                                        for (dz in -2..2) {
-                                            try {
-                                                val nearby = world.getBlockAt(
-                                                    loc.blockX + dx,
-                                                    loc.blockY + dy,
-                                                    loc.blockZ + dz
-                                                )
-                                                if (nearby.type in redstoneMaterials) {
-                                                    density++
-                                                }
-                                            } catch (e: Exception) { }
-                                        }
-                                    }
-                                }
-
-                                val isPowered = try {
-                                    block.blockPower > 0 ||
-                                            block.type == Material.OBSERVER ||
-                                            block.type == Material.COMPARATOR
-                                } catch (e: Exception) { false }
-
-                                foundRedstone[key] = RedstoneInfo(
-                                    location = loc,
-                                    type = block.type,
-                                    isPowered = isPowered,
-                                    density = density,
-                                    nearbyPlayers = nearbyPlayers
-                                )
-                            }
+                            processRedstoneBlock(block, players, effectiveRadius, foundRedstone)
                         }
                     }
                 }
@@ -330,6 +309,71 @@ class DetectionManager(private val plugin: ServerBoosterPlugin) {
             playersScanned = playerCount,
             scanTimeMs = System.currentTimeMillis() - startTime
         )
+    }
+
+    /**
+     * Process a single redstone block and add to results if near players
+     */
+    private fun processRedstoneBlock(
+        block: org.bukkit.block.Block,
+        players: List<Player>,
+        effectiveRadius: Int,
+        results: ConcurrentHashMap<String, RedstoneInfo>
+    ) {
+        val loc = block.location
+        val key = "${loc.world?.name}:${loc.blockX}:${loc.blockY}:${loc.blockZ}"
+
+        // Skip if already processed
+        if (results.containsKey(key)) return
+
+        val nearbyPlayers = players
+            .filter { it.world == loc.world }
+            .mapNotNull { player ->
+                try {
+                    val dist = player.location.distance(loc)
+                    if (dist <= effectiveRadius) {
+                        PlayerProximity(player.name, dist)
+                    } else null
+                } catch (e: Exception) {
+                    null
+                }
+            }
+            .sortedBy { it.distance }
+
+        if (nearbyPlayers.isNotEmpty()) {
+            // Simplified density check - only immediate neighbors
+            var density = 0
+            for (dx in -1..1) {
+                for (dy in -1..1) {
+                    for (dz in -1..1) {
+                        try {
+                            val nearby = loc.world?.getBlockAt(
+                                loc.blockX + dx,
+                                loc.blockY + dy,
+                                loc.blockZ + dz
+                            )
+                            if (nearby != null && nearby.type in redstoneMaterials) {
+                                density++
+                            }
+                        } catch (e: Exception) { }
+                    }
+                }
+            }
+
+            val isPowered = try {
+                block.blockPower > 0 ||
+                        block.type == Material.OBSERVER ||
+                        block.type == Material.COMPARATOR
+            } catch (e: Exception) { false }
+
+            results[key] = RedstoneInfo(
+                location = loc,
+                type = block.type,
+                isPowered = isPowered,
+                density = density,
+                nearbyPlayers = nearbyPlayers
+            )
+        }
     }
 
     // ════════════════════════════════════════════════════════════

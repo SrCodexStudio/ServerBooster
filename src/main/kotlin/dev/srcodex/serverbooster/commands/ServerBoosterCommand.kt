@@ -28,6 +28,7 @@ class ServerBoosterCommand(private val plugin: ServerBoosterPlugin) : CommandExe
             "optimize" -> handleOptimize(sender)
             "blockphysics" -> handleBlockPhysics(sender)
             "detect" -> handleDetect(sender, args)
+            "chunks" -> handleChunks(sender, args)
             "tps" -> handleTps(sender)
             "info" -> handleInfo(sender)
             "update" -> handleUpdate(sender)
@@ -58,6 +59,7 @@ class ServerBoosterCommand(private val plugin: ServerBoosterPlugin) : CommandExe
         sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}/sb optimize ${ChatColor.GRAY}- Force optimization")
         sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}/sb blockphysics ${ChatColor.GRAY}- Block physics report")
         sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}/sb detect <type> ${ChatColor.GRAY}- Detect mechanisms")
+        sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}/sb chunks [unload] ${ChatColor.GRAY}- Chunk statistics/unload")
         sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}/sb update ${ChatColor.GRAY}- Check for updates")
         sender.sendMessage("")
     }
@@ -399,6 +401,140 @@ class ServerBoosterCommand(private val plugin: ServerBoosterPlugin) : CommandExe
         }
     }
 
+    private fun handleChunks(sender: CommandSender, args: Array<out String>) {
+        if (!sender.hasPermission("serverbooster.chunks")) {
+            sender.sendMessage("${prefix}${ChatColor.RED}You don't have permission!")
+            return
+        }
+
+        val chunkOptimizer = plugin.chunkOptimizer
+        if (chunkOptimizer == null) {
+            sender.sendMessage("${prefix}${ChatColor.RED}Chunk Optimizer is not enabled!")
+            return
+        }
+
+        // Sub-command: unload
+        if (args.size > 1 && args[1].lowercase() == "unload") {
+            if (!sender.hasPermission("serverbooster.chunks.unload")) {
+                sender.sendMessage("${prefix}${ChatColor.RED}You don't have permission!")
+                return
+            }
+            sender.sendMessage("${prefix}${ChatColor.YELLOW}Forcing chunk unload cycle...")
+            sender.sendMessage("${prefix}${ChatColor.GRAY}Note: Only chunks without Paper's internal tickets can be unloaded")
+            val unloaded = chunkOptimizer.forceUnloadCycle()
+            sender.sendMessage("${prefix}${ChatColor.GREEN}Unloaded $unloaded chunks!")
+            return
+        }
+
+        // Sub-command: diagnose
+        if (args.size > 1 && args[1].lowercase() == "diagnose") {
+            if (!sender.hasPermission("serverbooster.chunks.diagnose")) {
+                sender.sendMessage("${prefix}${ChatColor.RED}You don't have permission!")
+                return
+            }
+            handleChunkDiagnose(sender, chunkOptimizer)
+            return
+        }
+
+        // Default: show statistics
+        val stats = chunkOptimizer.getChunkStats()
+        val globalStats = chunkOptimizer.getStatistics()
+
+        sender.sendMessage("")
+        sender.sendMessage("  ${ChatColor.AQUA}${ChatColor.BOLD}Chunk Optimizer Statistics")
+        sender.sendMessage("")
+        sender.sendMessage("  ${ChatColor.YELLOW}Global:")
+        sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.GRAY}Total cycles: ${ChatColor.WHITE}${globalStats["totalCycles"]}")
+        sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.GRAY}Total unloaded: ${ChatColor.GREEN}${globalStats["totalUnloaded"]}")
+        sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.GRAY}Skipped (internal tickets): ${ChatColor.YELLOW}${globalStats["totalSkippedInternal"]}")
+        sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.GRAY}Total failed: ${ChatColor.RED}${globalStats["totalFailed"]}")
+        sender.sendMessage("")
+
+        for ((worldName, worldStats) in stats) {
+            sender.sendMessage("  ${ChatColor.YELLOW}$worldName:")
+            sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.GRAY}Total loaded: ${ChatColor.WHITE}${worldStats.total}")
+            sender.sendMessage("")
+            sender.sendMessage("  ${ChatColor.DARK_GRAY}  ${ChatColor.GRAY}By Load Level:")
+            sender.sendMessage("  ${ChatColor.DARK_GRAY}  - ${ChatColor.GREEN}ENTITY_TICKING: ${ChatColor.WHITE}${worldStats.entityTicking} ${ChatColor.DARK_GRAY}(full processing)")
+            sender.sendMessage("  ${ChatColor.DARK_GRAY}  - ${ChatColor.YELLOW}TICKING: ${ChatColor.WHITE}${worldStats.ticking} ${ChatColor.DARK_GRAY}(no mobs)")
+            sender.sendMessage("  ${ChatColor.DARK_GRAY}  - ${ChatColor.RED}BORDER: ${ChatColor.WHITE}${worldStats.border} ${ChatColor.DARK_GRAY}(no ticking)")
+            sender.sendMessage("")
+            sender.sendMessage("  ${ChatColor.DARK_GRAY}  ${ChatColor.GRAY}By Category:")
+            sender.sendMessage("  ${ChatColor.DARK_GRAY}  - ${ChatColor.GRAY}Spawn chunks: ${ChatColor.AQUA}${worldStats.spawnChunks}")
+            sender.sendMessage("  ${ChatColor.DARK_GRAY}  - ${ChatColor.GRAY}Force loaded: ${ChatColor.AQUA}${worldStats.forceLoaded}")
+            sender.sendMessage("  ${ChatColor.DARK_GRAY}  - ${ChatColor.GRAY}Near players: ${ChatColor.GREEN}${worldStats.nearPlayers}")
+            sender.sendMessage("  ${ChatColor.DARK_GRAY}  - ${ChatColor.GRAY}Plugin tickets: ${ChatColor.LIGHT_PURPLE}${worldStats.withPluginTickets}")
+            sender.sendMessage("")
+        }
+
+        sender.sendMessage("  ${ChatColor.GRAY}Commands:")
+        sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}/sb chunks unload ${ChatColor.GRAY}- Force unload cycle")
+        sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.YELLOW}/sb chunks diagnose ${ChatColor.GRAY}- Detailed diagnostic")
+        sender.sendMessage("")
+        sender.sendMessage("  ${ChatColor.DARK_GRAY}Note: Paper controls chunk lifecycle via internal tickets.")
+        sender.sendMessage("  ${ChatColor.DARK_GRAY}Chunks with ENTITY_TICKING/TICKING cannot be force-unloaded.")
+        sender.sendMessage("")
+    }
+
+    private fun handleChunkDiagnose(
+        sender: CommandSender,
+        chunkOptimizer: dev.srcodex.serverbooster.chunk.ChunkOptimizer
+    ) {
+        val report = chunkOptimizer.getDiagnosticReport()
+
+        sender.sendMessage("")
+        sender.sendMessage("  ${ChatColor.GOLD}${ChatColor.BOLD}Chunk Diagnostic Report")
+        sender.sendMessage("")
+
+        for (worldReport in report.worldReports) {
+            sender.sendMessage("  ${ChatColor.YELLOW}${ChatColor.BOLD}${worldReport.worldName}:")
+            sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.GRAY}Players: ${ChatColor.WHITE}${worldReport.playerCount}")
+            sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.GRAY}View Distance: ${ChatColor.WHITE}${worldReport.viewDistance}")
+            sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.GRAY}Simulation Distance: ${ChatColor.WHITE}${worldReport.simulationDistance}")
+            sender.sendMessage("")
+            sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.GRAY}Loaded chunks: ${ChatColor.WHITE}${worldReport.loadedChunks}")
+            sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.GRAY}Expected minimum: ${ChatColor.WHITE}${worldReport.expectedMinChunks}")
+
+            val ratio = if (worldReport.expectedMinChunks > 0) {
+                worldReport.loadedChunks.toDouble() / worldReport.expectedMinChunks
+            } else 0.0
+            val ratioColor = when {
+                ratio > 2.0 -> ChatColor.RED
+                ratio > 1.5 -> ChatColor.YELLOW
+                else -> ChatColor.GREEN
+            }
+            sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.GRAY}Ratio: $ratioColor${String.format("%.2f", ratio)}x")
+            sender.sendMessage("")
+
+            sender.sendMessage("  ${ChatColor.DARK_GRAY}  ${ChatColor.GRAY}Load Level Distribution:")
+            for ((level, count) in worldReport.loadLevelDistribution) {
+                val levelColor = when (level) {
+                    "ENTITY_TICKING" -> ChatColor.GREEN
+                    "TICKING" -> ChatColor.YELLOW
+                    "BORDER" -> ChatColor.RED
+                    else -> ChatColor.GRAY
+                }
+                sender.sendMessage("  ${ChatColor.DARK_GRAY}  - $levelColor$level: ${ChatColor.WHITE}$count")
+            }
+            sender.sendMessage("")
+        }
+
+        sender.sendMessage("  ${ChatColor.AQUA}${ChatColor.BOLD}Recommendations:")
+        for (rec in report.recommendations) {
+            if (rec.startsWith("  ")) {
+                sender.sendMessage("  ${ChatColor.GRAY}$rec")
+            } else if (rec.startsWith("[")) {
+                sender.sendMessage("  ${ChatColor.YELLOW}$rec")
+            } else {
+                sender.sendMessage("  ${ChatColor.DARK_GRAY}- ${ChatColor.GRAY}$rec")
+            }
+        }
+        sender.sendMessage("")
+
+        sender.sendMessage("  ${ChatColor.DARK_GRAY}${ChatColor.ITALIC}${report.paperTicketNote}")
+        sender.sendMessage("")
+    }
+
     private fun handleTps(sender: CommandSender) {
         if (!sender.hasPermission("serverbooster.tps")) {
             sender.sendMessage("${prefix}${ChatColor.RED}You don't have permission!")
@@ -511,7 +647,7 @@ class ServerBoosterCommand(private val plugin: ServerBoosterPlugin) : CommandExe
         args: Array<out String>
     ): List<String> {
         if (args.size == 1) {
-            return listOf("reload", "info", "tps", "count", "limits", "check", "optimize", "blockphysics", "detect", "update", "help")
+            return listOf("reload", "info", "tps", "count", "limits", "check", "optimize", "blockphysics", "detect", "chunks", "update", "help")
                 .filter { it.startsWith(args[0].lowercase()) }
         }
 
@@ -529,6 +665,10 @@ class ServerBoosterCommand(private val plugin: ServerBoosterPlugin) : CommandExe
                 }
                 "detect" -> {
                     return listOf("spawners", "redstone")
+                        .filter { it.startsWith(args[1].lowercase()) }
+                }
+                "chunks" -> {
+                    return listOf("unload", "diagnose")
                         .filter { it.startsWith(args[1].lowercase()) }
                 }
             }

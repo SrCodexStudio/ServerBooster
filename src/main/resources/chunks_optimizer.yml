@@ -1,45 +1,184 @@
+# ==============================================================================
+# SERVERBOOSTER - CHUNK OPTIMIZER CONFIGURATION
+# ==============================================================================
+# This file configures chunk-related optimizations for your server.
+# All values are carefully tuned for optimal performance.
+# ==============================================================================
+
+# ==============================================================================
+# SLOW DOWN CHUNK PACKETS
+# ==============================================================================
+# Reduces chunk packet sending rate during server stress.
+# This helps reduce bandwidth and CPU usage when the server is struggling.
+
 slow-down-chunk-packets:
+  # Slow down when TPS drops below threshold
   when-tps-below:
     enabled: true
-    value: 19
+    value: 19.0
+
+  # Slow down for players with high ping (reduces their bandwidth usage)
   when-high-player-ping:
     enabled: true
     value: 150
+
+  # Worlds where this optimization is active
   worlds:
     - world
     - world_nether
     - world_the_end
+
+# ==============================================================================
+# BLOCK PHYSICS LAG DETECTOR
+# ==============================================================================
+# Detects and optionally prevents lag caused by block physics updates.
+# Useful for detecting lag machines, sand dupers, or cascading updates.
 
 block-physics-lag-detector:
   enabled: true
-  low-tps: 18
+
+  # Only activate detection when TPS is below this value
+  low-tps: 18.0
+
   lag:
+    # Nanoseconds threshold - warn when physics updates exceed this
+    # 950000 ns = ~1ms per update (very high, likely a lag machine)
     warning-threshold: 950000
+
+    # Send alert to operators when threshold exceeded
     notify-op: true
+
+    # Cancel the physics event (can break machines but stops lag)
     cancel-event: false
+
   worlds:
     - world
     - world_nether
     - world_the_end
+
+# ==============================================================================
+# CHUNK UNLOADER - INACTIVE CHUNK MANAGEMENT
+# ==============================================================================
+# Automatically unloads chunks that players have abandoned to free memory.
+#
+# HOW IT WORKS:
+# 1. Tracks when each chunk was loaded or last had activity
+# 2. Periodically checks for chunks that have been inactive for X seconds
+# 3. Requests Paper/Spigot to unload those chunks
+#
+# IMPORTANT NOTES:
+# - Paper has an internal "ticket" system that may prevent some unloads
+# - This is normal - Paper protects chunks it needs (view-distance, etc.)
+# - Force-loaded chunks and spawn chunks are always protected
+#
+# RECOMMENDED SETTINGS BY SERVER SIZE:
+# +------------------+----------+---------+----------+
+# | Server Size      | Interval | Timeout | Distance |
+# +------------------+----------+---------+----------+
+# | Small (1-20)     | 1200     | 300     | 5        |
+# | Medium (20-100)  | 600      | 180     | 5        |
+# | Large (100+)     | 400      | 120     | 4        |
+# +------------------+----------+---------+----------+
 
 unload-chunks:
+  # Enable/disable the chunk unloader
   enabled: true
-  interval-ticks: 6000
+
+  # --------------------------------------------------------------------------
+  # TIMING SETTINGS
+  # --------------------------------------------------------------------------
+
+  # How often to check for inactive chunks (in ticks, 20 ticks = 1 second)
+  # Higher values = less CPU usage but slower cleanup
+  # Lower values = faster cleanup but more CPU usage
+  # Recommended: 400-1200 ticks (20-60 seconds)
+  interval-ticks: 600
+
+  # Time a chunk must be inactive before it can be unloaded (in seconds)
+  #
+  # WARNING: Setting this too low (< 60s) can cause performance issues!
+  # If players move around normally, chunks will constantly load/unload,
+  # which is WORSE for performance than keeping them loaded.
+  #
+  # Recommended: 120-300 seconds (2-5 minutes)
+  inactive-timeout-seconds: 180
+
+  # --------------------------------------------------------------------------
+  # DISTANCE SETTINGS
+  # --------------------------------------------------------------------------
+
+  # Minimum distance (in chunks) from any player before unloading is allowed
+  # Uses Chebyshev distance (same as Minecraft's view-distance calculation)
+  #
+  # A value of 5 means chunks within 5 chunks of any player are protected.
+  # Paper may still reject unloads for chunks closer than view-distance.
+  #
+  # Recommended: 4-6 chunks
+  min-unload-distance: 5
+
+  # Radius around world spawn to protect from unloading (in chunks)
+  # Minecraft keeps spawn chunks loaded by default, so keep this small.
+  # Set to 0 if your world has keepSpawnInMemory disabled.
+  #
+  # Recommended: 2-3 chunks
+  spawn-chunk-radius: 2
+
+  # --------------------------------------------------------------------------
+  # ACTIVITY TRACKING
+  # --------------------------------------------------------------------------
+
+  # Activity decay rate (percentage per maintenance cycle)
+  # Higher values = chunks become unloadable faster after activity stops
+  # Currently not used - reserved for future activity-based unloading
+  activity-decay-percent: 10
+
+  # --------------------------------------------------------------------------
+  # LOGGING
+  # --------------------------------------------------------------------------
+
   log:
+    # Log summary when chunks are unloaded (recommended for monitoring)
     unload: true
+
+    # Detailed debug logging (WARNING: Very verbose!)
+    # Only enable when troubleshooting chunk issues
+    # Shows: every chunk load/unload, candidate selection, skip reasons
+    debug: false
+
+  # --------------------------------------------------------------------------
+  # WORLD SELECTION
+  # --------------------------------------------------------------------------
+
+  # Worlds where chunk unloading is active
+  # Add or remove worlds as needed
   worlds:
     - world
     - world_nether
     - world_the_end
 
+# ==============================================================================
+# ELYTRA OPTIMIZATION
+# ==============================================================================
+# Limits elytra boost frequency to reduce server load from fast-flying players.
+# Fast elytra flight causes rapid chunk loading which can stress the server.
+
 optimize-elytra:
-  reptide-trident-nerf:
+  # Riptide trident boost limiter
+  riptide-trident-nerf:
     enabled: true
+    # Minimum ticks between riptide boosts (20 ticks = 1 second)
     delay: 100
+
+  # Firework rocket boost limiter
   firework-nerf:
     enabled: true
+    # Minimum ticks between firework boosts
     delay: 60
+
+  # Log when boosts are blocked
   log: false
+
+  # Worlds where elytra optimization is active
   worlds:
     - world
     - world_nether

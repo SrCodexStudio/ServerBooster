@@ -34,11 +34,18 @@ class EntityOptimizer(private val plugin: ServerBoosterPlugin) : Listener {
     @Volatile
     private var isOptimizing = false
 
-    // Coroutine scope for batch processing
-    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    // Coroutine scope for batch processing with limited parallelism
+    private val scope = CoroutineScope(
+        Dispatchers.Default.limitedParallelism(2) + SupervisorJob()
+    )
 
     // Batch size for entity processing (prevents lag spikes)
     private val entityBatchSize = 100
+
+    // Throttle restore operations to prevent excessive main thread usage
+    @Volatile
+    private var lastRestoreTime = 0L
+    private val minRestoreIntervalMs = 100L  // At least 100ms between restore runs
 
     fun start() {
         if (!MinecraftVersion.isAtLeast(1, 14)) {
@@ -85,12 +92,17 @@ class EntityOptimizer(private val plugin: ServerBoosterPlugin) : Listener {
         }
 
         // Start restore task with coroutine-based batch processing
+        // OPTIMIZED: Added throttling to prevent excessive coroutine launches
         restoreTask = SchedulerUtil.runTaskTimer(
             config.checkUntrackedEntitiesFrequency.toLong() + 1,
             config.checkUntrackedEntitiesFrequency.toLong()
         ) {
-            scope.launch {
-                restoreNearbyEntitiesBatched()
+            val now = System.currentTimeMillis()
+            if (now - lastRestoreTime >= minRestoreIntervalMs) {
+                lastRestoreTime = now
+                scope.launch {
+                    restoreNearbyEntitiesBatched()
+                }
             }
         }
 
