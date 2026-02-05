@@ -3,7 +3,6 @@ package dev.srcodex.serverbooster.chunk
 import dev.srcodex.serverbooster.ServerBoosterPlugin
 import dev.srcodex.serverbooster.config.ChunkBlockLimitsConfig
 import dev.srcodex.serverbooster.util.SchedulerUtil
-import kotlinx.coroutines.*
 import org.bukkit.Bukkit
 import org.bukkit.ChatColor
 import org.bukkit.Location
@@ -17,27 +16,114 @@ import org.bukkit.event.EventHandler
 import org.bukkit.event.EventPriority
 import org.bukkit.event.HandlerList
 import org.bukkit.event.Listener
+import org.bukkit.event.block.BlockBreakEvent
 import org.bukkit.event.block.BlockPlaceEvent
 import org.bukkit.event.hanging.HangingPlaceEvent
 import org.bukkit.event.player.PlayerInteractEvent
+import org.bukkit.event.world.WorldLoadEvent
+import org.bukkit.event.world.WorldUnloadEvent
+import java.io.BufferedReader
+import java.io.BufferedWriter
+import java.io.File
+import java.io.FileReader
+import java.io.FileWriter
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
- * Limits the number of specific block types within a radius
- * Uses the same radius-based detection as EntityLimiter
+ * Limits the number of specific block types within a radius.
+ *
+ * IMPORTANT: This system only tracks blocks PLACED BY PLAYERS, not natural world blocks.
+ * This prevents issues where natural terrain (dirt, stone, etc.) would count against limits.
+ *
+ * PERSISTENCE: Block tracking data is saved to disk and survives server restarts.
+ * - Data is saved asynchronously every 5 minutes (only if changes occurred)
+ * - Data is saved on server shutdown
+ * - One file per world for efficient loading
+ * - Compact format: one line per block (x,y,z,MATERIAL)
  */
 class ChunkBlockLimiter(private val plugin: ServerBoosterPlugin) : Listener {
 
     private val config: ChunkBlockLimitsConfig
         get() = plugin.configManager.chunkBlockLimitsConfig
 
-    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    // ════════════════════════════════════════════════════════════
+    // PLAYER-PLACED BLOCK TRACKING (Per-World)
+    // ════════════════════════════════════════════════════════════
 
-    // Cache for radius block counts (cleared periodically)
-    private val radiusCountCache = ConcurrentHashMap<String, MutableMap<String, Int>>()
-    private var cacheCleanupTask: Any? = null
+    /**
+     * Tracks blocks placed by players, organized by world.
+     * Outer key: World name
+     * Inner key: "x:y:z" -> Material
+     */
+    private val worldBlockData = ConcurrentHashMap<String, ConcurrentHashMap<String, Material>>()
 
-    // Block category mappings
+    /**
+     * Tracks which worlds have unsaved changes (dirty flag per world)
+     */
+    private val dirtyWorlds = ConcurrentHashMap.newKeySet<String>()
+
+    /**
+     * Data directory for persistence
+     */
+    private val dataFolder: File by lazy {
+        File(plugin.dataFolder, "block_tracking").also { it.mkdirs() }
+    }
+
+    // Materials that can generate naturally - these need tracking for global limits
+    private val naturalMaterials = setOf(
+        // Stones
+        Material.STONE, Material.GRANITE, Material.DIORITE, Material.ANDESITE,
+        Material.DEEPSLATE, Material.TUFF, Material.CALCITE, Material.COBBLESTONE,
+        Material.MOSSY_COBBLESTONE, Material.COBBLED_DEEPSLATE,
+
+        // Dirt variants
+        Material.DIRT, Material.GRASS_BLOCK, Material.PODZOL, Material.MYCELIUM,
+        Material.COARSE_DIRT, Material.ROOTED_DIRT, Material.MUD, Material.MUDDY_MANGROVE_ROOTS,
+
+        // Sand/Gravel
+        Material.SAND, Material.RED_SAND, Material.GRAVEL, Material.CLAY,
+        Material.SOUL_SAND, Material.SOUL_SOIL,
+
+        // Ores (can be placed back)
+        Material.COAL_ORE, Material.IRON_ORE, Material.GOLD_ORE, Material.DIAMOND_ORE,
+        Material.EMERALD_ORE, Material.LAPIS_ORE, Material.REDSTONE_ORE, Material.COPPER_ORE,
+        Material.DEEPSLATE_COAL_ORE, Material.DEEPSLATE_IRON_ORE, Material.DEEPSLATE_GOLD_ORE,
+        Material.DEEPSLATE_DIAMOND_ORE, Material.DEEPSLATE_EMERALD_ORE, Material.DEEPSLATE_LAPIS_ORE,
+        Material.DEEPSLATE_REDSTONE_ORE, Material.DEEPSLATE_COPPER_ORE, Material.NETHER_GOLD_ORE,
+        Material.NETHER_QUARTZ_ORE, Material.ANCIENT_DEBRIS,
+
+        // Nether
+        Material.NETHERRACK, Material.BASALT, Material.BLACKSTONE, Material.MAGMA_BLOCK,
+        Material.GLOWSTONE, Material.CRIMSON_NYLIUM, Material.WARPED_NYLIUM,
+
+        // End
+        Material.END_STONE, Material.OBSIDIAN,
+
+        // Logs/Wood (trees)
+        Material.OAK_LOG, Material.SPRUCE_LOG, Material.BIRCH_LOG, Material.JUNGLE_LOG,
+        Material.ACACIA_LOG, Material.DARK_OAK_LOG, Material.MANGROVE_LOG, Material.CHERRY_LOG,
+        Material.CRIMSON_STEM, Material.WARPED_STEM,
+
+        // Leaves
+        Material.OAK_LEAVES, Material.SPRUCE_LEAVES, Material.BIRCH_LEAVES, Material.JUNGLE_LEAVES,
+        Material.ACACIA_LEAVES, Material.DARK_OAK_LEAVES, Material.MANGROVE_LEAVES, Material.CHERRY_LEAVES,
+        Material.AZALEA_LEAVES, Material.FLOWERING_AZALEA_LEAVES,
+
+        // Ice/Snow
+        Material.ICE, Material.PACKED_ICE, Material.BLUE_ICE, Material.SNOW_BLOCK, Material.POWDER_SNOW,
+
+        // Terracotta (mesa biome)
+        Material.TERRACOTTA, Material.WHITE_TERRACOTTA, Material.ORANGE_TERRACOTTA,
+        Material.YELLOW_TERRACOTTA, Material.BROWN_TERRACOTTA, Material.RED_TERRACOTTA,
+        Material.LIGHT_GRAY_TERRACOTTA,
+
+        // Misc natural
+        Material.SANDSTONE, Material.RED_SANDSTONE, Material.PRISMARINE, Material.DRIPSTONE_BLOCK,
+        Material.POINTED_DRIPSTONE, Material.MOSS_BLOCK, Material.SCULK, Material.AMETHYST_BLOCK
+    )
+
+    // Block category mappings (these don't generate naturally)
     private val blockCategories = mapOf(
         // Storage
         "chests" to setOf(Material.CHEST),
@@ -102,56 +188,271 @@ class ChunkBlockLimiter(private val plugin: ServerBoosterPlugin) : Listener {
     // Custom materials added by config (direct material names)
     private val customMaterialLimits = mutableMapOf<Material, Int>()
 
+    // All materials that belong to a category (these don't need player tracking)
+    private val categorizedMaterials = mutableSetOf<Material>()
+
+    // Tasks
+    private var autoSaveTask: Any? = null
+    private var cleanupTask: Any? = null
+
+    // Flag to prevent saving during shutdown if already saved
+    private val isShuttingDown = AtomicBoolean(false)
+
     init {
         // Build reverse mapping for predefined categories
         blockCategories.forEach { (category, materials) ->
             materials.forEach { material ->
                 materialToCategory[material] = category
+                categorizedMaterials.add(material)
             }
         }
 
         // Load custom material limits from config
         loadCustomMaterialLimits()
 
+        // Load existing data for all configured worlds
+        loadAllWorldData()
+
         // Register events
         Bukkit.getPluginManager().registerEvents(this, plugin)
 
-        // Start cache cleanup task (every 2 minutes)
-        cacheCleanupTask = SchedulerUtil.runAsyncTimer(2400L, 2400L, Runnable {
-            radiusCountCache.clear()
-            debug("Block count cache cleared")
-        })
+        // Auto-save task: every 5 minutes (6000 ticks), only save dirty worlds
+        autoSaveTask = SchedulerUtil.runAsyncTimer(6000L, 6000L) {
+            saveAllDirtyWorlds()
+        }
 
-        plugin.logger.info("Block Limiter initialized (radius: ${config.radius} blocks)")
+        // Cleanup task: every 10 minutes, remove invalid blocks
+        cleanupTask = SchedulerUtil.runAsyncTimer(12000L, 12000L) {
+            cleanupInvalidBlocks()
+        }
+
+        val totalBlocks = worldBlockData.values.sumOf { it.size }
+        plugin.logger.info("[BlockLimiter] Initialized (radius: ${config.radius} blocks)")
+        plugin.logger.info("[BlockLimiter] Loaded $totalBlocks tracked blocks from ${worldBlockData.size} worlds")
     }
 
     fun unregister() {
+        isShuttingDown.set(true)
+
         HandlerList.unregisterAll(this)
-        SchedulerUtil.cancelTask(cacheCleanupTask)
-        cacheCleanupTask = null
-        scope.cancel()
-        radiusCountCache.clear()
+        SchedulerUtil.cancelTask(autoSaveTask)
+        SchedulerUtil.cancelTask(cleanupTask)
+        autoSaveTask = null
+        cleanupTask = null
+
+        // Final save (synchronous on shutdown)
+        saveAllWorldsSync()
+
+        worldBlockData.clear()
+        dirtyWorlds.clear()
         customMaterialLimits.clear()
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // PERSISTENCE - SAVE/LOAD
+    // ════════════════════════════════════════════════════════════
+
+    /**
+     * Get the data file for a specific world
+     */
+    private fun getWorldFile(worldName: String): File {
+        // Sanitize world name for filename
+        val safeName = worldName.replace(Regex("[^a-zA-Z0-9_-]"), "_")
+        return File(dataFolder, "$safeName.dat")
+    }
+
+    /**
+     * Load data for all configured worlds
+     */
+    private fun loadAllWorldData() {
+        for (worldName in config.worlds) {
+            loadWorldData(worldName)
+        }
+    }
+
+    /**
+     * Load block tracking data for a specific world
+     */
+    private fun loadWorldData(worldName: String) {
+        val file = getWorldFile(worldName)
+        if (!file.exists()) {
+            worldBlockData[worldName] = ConcurrentHashMap()
+            return
+        }
+
+        val blocks = ConcurrentHashMap<String, Material>()
+        var loadedCount = 0
+        var errorCount = 0
+
+        try {
+            BufferedReader(FileReader(file)).use { reader ->
+                reader.lineSequence().forEach { line ->
+                    if (line.isBlank()) return@forEach
+
+                    try {
+                        // Format: x,y,z,MATERIAL_NAME
+                        val parts = line.split(',', limit = 4)
+                        if (parts.size == 4) {
+                            val x = parts[0].toInt()
+                            val y = parts[1].toInt()
+                            val z = parts[2].toInt()
+                            val material = Material.valueOf(parts[3])
+
+                            val key = "$x:$y:$z"
+                            blocks[key] = material
+                            loadedCount++
+                        }
+                    } catch (e: Exception) {
+                        errorCount++
+                    }
+                }
+            }
+
+            worldBlockData[worldName] = blocks
+            debug("Loaded $loadedCount blocks for world $worldName" +
+                    if (errorCount > 0) " ($errorCount errors)" else "")
+
+        } catch (e: Exception) {
+            plugin.logger.warning("[BlockLimiter] Failed to load data for world $worldName: ${e.message}")
+            worldBlockData[worldName] = ConcurrentHashMap()
+        }
+    }
+
+    /**
+     * Save all worlds that have changes (async)
+     */
+    private fun saveAllDirtyWorlds() {
+        if (dirtyWorlds.isEmpty()) return
+
+        val worldsToSave = dirtyWorlds.toList()
+        dirtyWorlds.clear()
+
+        for (worldName in worldsToSave) {
+            saveWorldData(worldName)
+        }
+    }
+
+    /**
+     * Save all worlds synchronously (for shutdown)
+     */
+    private fun saveAllWorldsSync() {
+        val totalSaved = worldBlockData.entries.sumOf { (worldName, _) ->
+            saveWorldData(worldName)
+        }
+        plugin.logger.info("[BlockLimiter] Saved $totalSaved tracked blocks across ${worldBlockData.size} worlds")
+    }
+
+    /**
+     * Save block tracking data for a specific world
+     * Returns number of blocks saved
+     */
+    private fun saveWorldData(worldName: String): Int {
+        val blocks = worldBlockData[worldName] ?: return 0
+        if (blocks.isEmpty()) {
+            // Delete file if no blocks
+            val file = getWorldFile(worldName)
+            if (file.exists()) file.delete()
+            return 0
+        }
+
+        val file = getWorldFile(worldName)
+        var savedCount = 0
+
+        try {
+            // Write to temp file first, then rename (atomic operation)
+            val tempFile = File(file.parentFile, "${file.name}.tmp")
+
+            BufferedWriter(FileWriter(tempFile)).use { writer ->
+                for ((key, material) in blocks) {
+                    val parts = key.split(':')
+                    if (parts.size == 3) {
+                        // Format: x,y,z,MATERIAL_NAME
+                        writer.write("${parts[0]},${parts[1]},${parts[2]},${material.name}")
+                        writer.newLine()
+                        savedCount++
+                    }
+                }
+            }
+
+            // Atomic rename
+            if (file.exists()) file.delete()
+            tempFile.renameTo(file)
+
+            debug("Saved $savedCount blocks for world $worldName")
+
+        } catch (e: Exception) {
+            plugin.logger.warning("[BlockLimiter] Failed to save data for world $worldName: ${e.message}")
+        }
+
+        return savedCount
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // WORLD EVENTS - Load/Unload data with worlds
+    // ════════════════════════════════════════════════════════════
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    fun onWorldLoad(event: WorldLoadEvent) {
+        val worldName = event.world.name
+        if (config.worlds.contains(worldName) && !worldBlockData.containsKey(worldName)) {
+            SchedulerUtil.runAsync {
+                loadWorldData(worldName)
+                debug("Loaded data for world $worldName on world load")
+            }
+        }
+    }
+
+    @EventHandler(priority = EventPriority.MONITOR)
+    fun onWorldUnload(event: WorldUnloadEvent) {
+        val worldName = event.world.name
+        if (worldBlockData.containsKey(worldName)) {
+            // Save before unloading
+            SchedulerUtil.runAsync {
+                saveWorldData(worldName)
+                debug("Saved and unloaded data for world $worldName")
+            }
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // BLOCK TRACKING HELPERS
+    // ════════════════════════════════════════════════════════════
+
+    private fun createBlockKey(x: Int, y: Int, z: Int): String = "$x:$y:$z"
+
+    private fun trackPlayerPlacedBlock(worldName: String, x: Int, y: Int, z: Int, material: Material) {
+        val blocks = worldBlockData.getOrPut(worldName) { ConcurrentHashMap() }
+        val key = createBlockKey(x, y, z)
+        blocks[key] = material
+        dirtyWorlds.add(worldName)
+        debug("Tracked: $material at $worldName:$key (world total: ${blocks.size})")
+    }
+
+    private fun untrackBlock(worldName: String, x: Int, y: Int, z: Int) {
+        val blocks = worldBlockData[worldName] ?: return
+        val key = createBlockKey(x, y, z)
+        val removed = blocks.remove(key)
+        if (removed != null) {
+            dirtyWorlds.add(worldName)
+            debug("Untracked block at $worldName:$key (world total: ${blocks.size})")
+        }
     }
 
     /**
      * Load custom material limits from config
-     * If a config key is not a predefined category, try to parse it as a Material name
      */
     private fun loadCustomMaterialLimits() {
         customMaterialLimits.clear()
 
         for ((key, limit) in config.limits) {
-            // Skip if it's a predefined category
             if (blockCategories.containsKey(key)) continue
-            // Skip entity categories
             if (key in listOf("armor-stands", "item-frames", "glow-item-frames", "paintings")) continue
 
-            // Try to parse as Material name
             val materialName = key.uppercase().replace("-", "_")
             try {
                 val material = Material.valueOf(materialName)
                 customMaterialLimits[material] = limit
+                categorizedMaterials.add(material)
                 debug("Loaded custom material limit: $material = $limit")
             } catch (e: IllegalArgumentException) {
                 plugin.logger.warning("[BlockLimiter] Unknown material or category in config: $key")
@@ -159,7 +460,60 @@ class ChunkBlockLimiter(private val plugin: ServerBoosterPlugin) : Listener {
         }
 
         if (customMaterialLimits.isNotEmpty()) {
-            plugin.logger.info("Block Limiter loaded ${customMaterialLimits.size} custom material limits")
+            plugin.logger.info("[BlockLimiter] Loaded ${customMaterialLimits.size} custom material limits")
+        }
+    }
+
+    /**
+     * Check if a material needs player tracking for limits.
+     */
+    private fun needsPlayerTracking(material: Material): Boolean {
+        if (categorizedMaterials.contains(material)) return false
+        if (naturalMaterials.contains(material)) return true
+        return material.isBlock && material.isSolid
+    }
+
+    /**
+     * Cleanup blocks that no longer exist in the world
+     */
+    private fun cleanupInvalidBlocks() {
+        var totalRemoved = 0
+
+        for ((worldName, blocks) in worldBlockData) {
+            val world = Bukkit.getWorld(worldName) ?: continue
+            val toRemove = mutableListOf<String>()
+
+            for ((key, material) in blocks) {
+                val parts = key.split(':')
+                if (parts.size != 3) {
+                    toRemove.add(key)
+                    continue
+                }
+
+                val x = parts[0].toIntOrNull() ?: continue
+                val y = parts[1].toIntOrNull() ?: continue
+                val z = parts[2].toIntOrNull() ?: continue
+
+                // Only check loaded chunks
+                val chunkX = x shr 4
+                val chunkZ = z shr 4
+                if (!world.isChunkLoaded(chunkX, chunkZ)) continue
+
+                val block = world.getBlockAt(x, y, z)
+                if (block.type != material) {
+                    toRemove.add(key)
+                }
+            }
+
+            if (toRemove.isNotEmpty()) {
+                toRemove.forEach { blocks.remove(it) }
+                dirtyWorlds.add(worldName)
+                totalRemoved += toRemove.size
+            }
+        }
+
+        if (totalRemoved > 0) {
+            debug("Cleanup: removed $totalRemoved invalid tracked blocks")
         }
     }
 
@@ -174,53 +528,73 @@ class ChunkBlockLimiter(private val plugin: ServerBoosterPlugin) : Listener {
         if (event.player.hasPermission(config.bypassPermission)) return
 
         val material = event.block.type
+        val block = event.block
+        val location = block.location
+        val worldName = block.world.name
         val category = materialToCategory[material]
 
-        // Check specific category limit (predefined groups like "hoppers", "pistons")
+        // Check specific category limit (hoppers, pistons, etc.)
         if (category != null) {
             val limit = config.limits[category] ?: -1
             if (limit != -1) {
-                val currentCount = getBlockCountInRadius(event.block.location, category)
+                val currentCount = getBlockCountInRadius(location, category)
 
                 if (currentCount >= limit) {
                     event.isCancelled = true
                     sendDenyMessage(event.player, category, limit, currentCount)
-                    debug("Blocked ${event.player.name} from placing $category at ${formatLocation(event.block.location)} (count: $currentCount, limit: $limit)")
+                    debug("Blocked ${event.player.name} from placing $category (count: $currentCount, limit: $limit)")
                     return
                 }
             }
         }
 
-        // Check custom material limit (direct material names like "TNT", "SPAWNER")
+        // Check custom material limit
         val customLimit = customMaterialLimits[material]
         if (customLimit != null && customLimit != -1) {
-            val currentCount = getSpecificBlockCountInRadius(event.block.location, material)
+            val currentCount = getSpecificBlockCountInRadius(location, material)
 
             if (currentCount >= customLimit) {
                 event.isCancelled = true
                 sendDenyMessage(event.player, material.name.lowercase().replace("_", " "), customLimit, currentCount)
-                debug("Blocked ${event.player.name} from placing ${material.name} at ${formatLocation(event.block.location)} (custom limit count: $currentCount, limit: $customLimit)")
+                debug("Blocked ${event.player.name} from placing ${material.name} (custom limit: $currentCount/$customLimit)")
                 return
             }
         }
 
-        // Check global limit if enabled
+        // Check global limit - only count PLAYER-PLACED blocks
         if (config.globalLimitsEnabled) {
             val globalLimit = getGlobalLimitForMaterial(material)
             if (globalLimit != -1) {
-                val currentCount = getSpecificBlockCountInRadius(event.block.location, material)
+                val currentCount = getPlayerPlacedBlockCountInRadius(worldName, block.x, block.y, block.z, material)
 
                 if (currentCount >= globalLimit) {
                     event.isCancelled = true
                     sendDenyMessage(event.player, material.name.lowercase().replace("_", " "), globalLimit, currentCount)
-                    debug("Blocked ${event.player.name} from placing ${material.name} at ${formatLocation(event.block.location)} (global count: $currentCount, limit: $globalLimit)")
+                    debug("Blocked ${event.player.name} from placing ${material.name} (global limit: $currentCount/$globalLimit)")
+                    return
                 }
             }
+        }
+
+        // Placement allowed - track if needed
+        if (needsPlayerTracking(material)) {
+            trackPlayerPlacedBlock(worldName, block.x, block.y, block.z, material)
         }
     }
 
     // ════════════════════════════════════════════════════════════
-    // ENTITY PLACE EVENTS (Armor Stands, Item Frames, Paintings)
+    // BLOCK BREAK EVENT
+    // ════════════════════════════════════════════════════════════
+
+    @EventHandler(priority = EventPriority.MONITOR, ignoreCancelled = true)
+    fun onBlockBreak(event: BlockBreakEvent) {
+        if (!config.enabled) return
+        val block = event.block
+        untrackBlock(block.world.name, block.x, block.y, block.z)
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // ENTITY PLACE EVENTS
     // ════════════════════════════════════════════════════════════
 
     @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
@@ -246,7 +620,7 @@ class ChunkBlockLimiter(private val plugin: ServerBoosterPlugin) : Listener {
         if (currentCount >= limit) {
             event.isCancelled = true
             sendDenyMessage(player, category, limit, currentCount)
-            debug("Blocked ${player.name} from placing $category at ${formatLocation(event.entity.location)} (count: $currentCount, limit: $limit)")
+            debug("Blocked ${player.name} from placing $category (count: $currentCount, limit: $limit)")
         }
     }
 
@@ -268,7 +642,7 @@ class ChunkBlockLimiter(private val plugin: ServerBoosterPlugin) : Listener {
         if (currentCount >= limit) {
             event.isCancelled = true
             sendDenyMessage(event.player, category, limit, currentCount)
-            debug("Blocked ${event.player.name} from placing armor stand at ${formatLocation(clickedBlock.location)} (count: $currentCount, limit: $limit)")
+            debug("Blocked ${event.player.name} from placing armor stand (count: $currentCount, limit: $limit)")
         }
     }
 
@@ -276,6 +650,9 @@ class ChunkBlockLimiter(private val plugin: ServerBoosterPlugin) : Listener {
     // RADIUS-BASED COUNT METHODS
     // ════════════════════════════════════════════════════════════
 
+    /**
+     * Count blocks in radius by category (for non-natural blocks)
+     */
     private fun getBlockCountInRadius(center: Location, category: String): Int {
         val materials = blockCategories[category] ?: return 0
         val radius = config.radius
@@ -287,17 +664,14 @@ class ChunkBlockLimiter(private val plugin: ServerBoosterPlugin) : Listener {
         val centerZ = center.blockZ
         val radiusSquared = radius * radius
 
-        // Scan within radius (optimized: only scan within bounding box)
         for (x in (centerX - radius)..(centerX + radius)) {
             for (z in (centerZ - radius)..(centerZ + radius)) {
-                // Check horizontal distance first (faster)
                 val dx = x - centerX
                 val dz = z - centerZ
                 if (dx * dx + dz * dz > radiusSquared) continue
 
                 for (y in maxOf(world.minHeight, centerY - radius)..minOf(world.maxHeight - 1, centerY + radius)) {
                     val dy = y - centerY
-                    // Full 3D distance check
                     if (dx * dx + dy * dy + dz * dz <= radiusSquared) {
                         val block = world.getBlockAt(x, y, z)
                         if (block.type in materials) {
@@ -311,6 +685,9 @@ class ChunkBlockLimiter(private val plugin: ServerBoosterPlugin) : Listener {
         return count
     }
 
+    /**
+     * Count specific material in radius
+     */
     private fun getSpecificBlockCountInRadius(center: Location, material: Material): Int {
         val radius = config.radius
         val world = center.world ?: return 0
@@ -342,6 +719,38 @@ class ChunkBlockLimiter(private val plugin: ServerBoosterPlugin) : Listener {
         return count
     }
 
+    /**
+     * Count ONLY player-placed blocks in radius (for global limits)
+     */
+    private fun getPlayerPlacedBlockCountInRadius(worldName: String, centerX: Int, centerY: Int, centerZ: Int, material: Material): Int {
+        val blocks = worldBlockData[worldName] ?: return 0
+        val radius = config.radius
+        val radiusSquared = radius * radius
+
+        var count = 0
+
+        for (x in (centerX - radius)..(centerX + radius)) {
+            for (z in (centerZ - radius)..(centerZ + radius)) {
+                val dx = x - centerX
+                val dz = z - centerZ
+                if (dx * dx + dz * dz > radiusSquared) continue
+
+                for (y in (centerY - radius)..(centerY + radius)) {
+                    val dy = y - centerY
+                    if (dx * dx + dy * dy + dz * dz <= radiusSquared) {
+                        val key = "$x:$y:$z"
+                        val trackedMaterial = blocks[key]
+                        if (trackedMaterial == material) {
+                            count++
+                        }
+                    }
+                }
+            }
+        }
+
+        return count
+    }
+
     private fun getEntityCountInRadius(center: Location, category: String): Int {
         val radius = config.radius.toDouble()
         val world = center.world ?: return 0
@@ -362,7 +771,6 @@ class ChunkBlockLimiter(private val plugin: ServerBoosterPlugin) : Listener {
     private fun getGlobalLimitForMaterial(material: Material): Int {
         val materialName = material.name.lowercase()
 
-        // Check specific global limits first
         for ((category, limit) in config.globalLimits) {
             when (category) {
                 "stone-variants" -> {
@@ -399,10 +807,20 @@ class ChunkBlockLimiter(private val plugin: ServerBoosterPlugin) : Listener {
                         return limit
                     }
                 }
+                "dirt-variants" -> {
+                    if (materialName.contains("dirt") || materialName == "grass_block" ||
+                        materialName == "podzol" || materialName == "mycelium") {
+                        return limit
+                    }
+                }
+                "sand-variants" -> {
+                    if (materialName.contains("sand") && !materialName.contains("sandstone")) {
+                        return limit
+                    }
+                }
             }
         }
 
-        // Return default limit for other blocks
         return config.globalDefaultLimit
     }
 
@@ -426,13 +844,47 @@ class ChunkBlockLimiter(private val plugin: ServerBoosterPlugin) : Listener {
         }
     }
 
-    private fun formatLocation(loc: Location): String {
-        return "${loc.world?.name}: ${loc.blockX}, ${loc.blockY}, ${loc.blockZ}"
-    }
-
     private fun debug(message: String) {
         if (config.debug) {
             plugin.logger.info("[BlockLimiter] $message")
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════
+    // PUBLIC API
+    // ════════════════════════════════════════════════════════════
+
+    /**
+     * Get total tracked blocks across all worlds
+     */
+    fun getTrackedBlockCount(): Int = worldBlockData.values.sumOf { it.size }
+
+    /**
+     * Get tracked blocks per world
+     */
+    fun getTrackedBlockCountPerWorld(): Map<String, Int> {
+        return worldBlockData.mapValues { it.value.size }
+    }
+
+    /**
+     * Get breakdown of tracked blocks by material
+     */
+    fun getTrackedBlockStats(): Map<Material, Int> {
+        val stats = mutableMapOf<Material, Int>()
+        for (blocks in worldBlockData.values) {
+            for (material in blocks.values) {
+                stats[material] = stats.getOrDefault(material, 0) + 1
+            }
+        }
+        return stats
+    }
+
+    /**
+     * Force save all data (for admin commands)
+     */
+    fun forceSave() {
+        SchedulerUtil.runAsync {
+            saveAllWorldsSync()
         }
     }
 }
