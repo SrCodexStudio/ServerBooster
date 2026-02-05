@@ -221,8 +221,8 @@ class ChunkBlockLimiter(private val plugin: ServerBoosterPlugin) : Listener {
             saveAllDirtyWorlds()
         }
 
-        // Cleanup task: every 10 minutes, remove invalid blocks
-        cleanupTask = SchedulerUtil.runAsyncTimer(12000L, 12000L) {
+        // Cleanup task: every 30 minutes, remove invalid blocks (runs on main thread for world access)
+        cleanupTask = SchedulerUtil.runTaskTimer(36000L, 36000L) {
             cleanupInvalidBlocks()
         }
 
@@ -474,16 +474,19 @@ class ChunkBlockLimiter(private val plugin: ServerBoosterPlugin) : Listener {
     }
 
     /**
-     * Cleanup blocks that no longer exist in the world
+     * Cleanup blocks that no longer exist in the world.
+     * Only removes blocks that are now AIR (destroyed), not blocks that changed material.
+     * This prevents false positives from natural block changes (grass→dirt, etc.)
      */
     private fun cleanupInvalidBlocks() {
         var totalRemoved = 0
+        var totalChecked = 0
 
         for ((worldName, blocks) in worldBlockData) {
             val world = Bukkit.getWorld(worldName) ?: continue
             val toRemove = mutableListOf<String>()
 
-            for ((key, material) in blocks) {
+            for ((key, _) in blocks) {
                 val parts = key.split(':')
                 if (parts.size != 3) {
                     toRemove.add(key)
@@ -499,8 +502,12 @@ class ChunkBlockLimiter(private val plugin: ServerBoosterPlugin) : Listener {
                 val chunkZ = z shr 4
                 if (!world.isChunkLoaded(chunkX, chunkZ)) continue
 
+                totalChecked++
                 val block = world.getBlockAt(x, y, z)
-                if (block.type != material) {
+
+                // Only remove if block is now AIR (was destroyed)
+                // Don't remove if material changed (grass→dirt, etc.)
+                if (block.type == Material.AIR || block.type == Material.CAVE_AIR || block.type == Material.VOID_AIR) {
                     toRemove.add(key)
                 }
             }
@@ -512,8 +519,8 @@ class ChunkBlockLimiter(private val plugin: ServerBoosterPlugin) : Listener {
             }
         }
 
-        if (totalRemoved > 0) {
-            debug("Cleanup: removed $totalRemoved invalid tracked blocks")
+        if (totalRemoved > 0 || config.debug) {
+            debug("Cleanup: checked $totalChecked blocks, removed $totalRemoved destroyed blocks")
         }
     }
 
