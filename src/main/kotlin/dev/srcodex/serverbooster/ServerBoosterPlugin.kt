@@ -17,6 +17,7 @@ import dev.srcodex.serverbooster.util.MinecraftVersion
 import dev.srcodex.serverbooster.util.SchedulerUtil
 import dev.srcodex.serverbooster.util.UpdateChecker
 import kotlinx.coroutines.*
+import org.bstats.bukkit.Metrics
 import org.bukkit.Bukkit
 import org.bukkit.plugin.java.JavaPlugin
 import java.util.logging.Level
@@ -92,6 +93,10 @@ class ServerBoosterPlugin : JavaPlugin() {
 
     override fun onEnable() {
         instance = this
+
+        // Initialize bStats metrics
+        val pluginId = 29454
+        Metrics(this, pluginId)
 
         // Check version compatibility
         if (!MinecraftVersion.isSupported) {
