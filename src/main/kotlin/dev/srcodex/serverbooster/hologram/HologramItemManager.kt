@@ -156,6 +156,16 @@ class HologramItemManager(private val plugin: ServerBoosterPlugin) : Listener {
         return item.persistentDataContainer.has(amountKey, PersistentDataType.LONG)
     }
 
+    /**
+     * Removes PDC stacking data from an item.
+     * Used when expanding stacks for mob pickup (Piglin bartering, etc.)
+     */
+    private fun clearStackData(item: Item) {
+        val pdc = item.persistentDataContainer
+        pdc.remove(amountKey)
+        pdc.remove(checksumKey)
+    }
+
     // ══════════════════════════════════════════════════════════════════════
     // EVENT HANDLERS
     // ══════════════════════════════════════════════════════════════════════
@@ -263,14 +273,78 @@ class HologramItemManager(private val plugin: ServerBoosterPlugin) : Listener {
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = true)
-    fun onPlayerPickup(event: EntityPickupItemEvent) {
-        if (event.entity !is Player) return
-        val player = event.entity as Player
+    fun onEntityPickup(event: EntityPickupItemEvent) {
         val item = event.item
-
         if (!isInConfiguredWorld(item)) return
 
+        // If no special stack data, let vanilla handle it
+        if (!hasStackData(item)) return
+
         val realAmount = getRealAmount(item)
+
+        // ══════════════════════════════════════════════════════════════
+        // MOB PICKUP - Restore real amount so mob sees it correctly
+        // This fixes Piglin bartering: they need to see the real stack size
+        //
+        // CRITICAL: We MUST cancel the event because Minecraft already "saw"
+        // ItemStack.amount=1 when the event fired. We restore the real amount
+        // and let the mob pick it up on the next tick (now without PDC data).
+        // ══════════════════════════════════════════════════════════════
+        if (event.entity !is Player) {
+            if (realAmount <= 1) return
+
+            // Anti-dupe: prevent concurrent processing
+            if (!processingItems.add(item.uniqueId)) return
+
+            // ALWAYS cancel - Minecraft already decided to pick up amount=1
+            event.isCancelled = true
+
+            try {
+                val maxStack = item.itemStack.type.maxStackSize
+
+                if (realAmount <= maxStack) {
+                    // CASE 1: Fits in a vanilla stack (<=64)
+                    // Restore real amount, clear PDC, mob picks up next tick
+                    val stack = item.itemStack.clone()
+                    stack.amount = realAmount.toInt()
+                    item.setItemStack(stack)
+                    clearStackData(item)
+                    item.isCustomNameVisible = false
+                    item.pickupDelay = 0  // Allow immediate re-pickup
+                    // Next tick: hasStackData()=false, vanilla handles normally
+                } else {
+                    // CASE 2: Stack larger than 64
+                    // Give maxStack to mob, create 1 item with remainder
+                    val stack = item.itemStack.clone()
+
+                    // Restore original item with maxStack (64)
+                    stack.amount = maxStack
+                    item.setItemStack(stack)
+                    clearStackData(item)
+                    item.isCustomNameVisible = false
+                    item.pickupDelay = 0
+
+                    // Create ONE item with the rest (still uses PDC)
+                    val remaining = realAmount - maxStack
+                    val remainderStack = item.itemStack.clone()
+                    remainderStack.amount = 1
+
+                    val newItem = item.world.dropItem(item.location, remainderStack)
+                    setRealAmount(newItem, remaining)
+                    newItem.pickupDelay = 10
+                    updateHologramDisplay(newItem)
+                }
+            } finally {
+                processingItems.remove(item.uniqueId)
+                playerDroppedItems.remove(item.uniqueId)
+            }
+            return
+        }
+
+        // ══════════════════════════════════════════════════════════════
+        // PLAYER PICKUP - Existing logic
+        // ══════════════════════════════════════════════════════════════
+        val player = event.entity as Player
 
         // If it's a normal stack (<=64), let vanilla handle it
         if (realAmount <= item.itemStack.type.maxStackSize && !hasStackData(item)) {
