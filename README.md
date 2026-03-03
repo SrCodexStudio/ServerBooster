@@ -9,6 +9,7 @@
 
 <p align="center">
   <strong>The Ultimate Performance Optimization Plugin for Minecraft Servers</strong>
+  <strong>Discord Support Invite - https://discord.gg/Jxv58TyV7A</strong>
 </p>
 
 <p align="center">
