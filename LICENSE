@@ -1,0 +1,113 @@
+ServerBooster Proprietary License
+Copyright (c) 2025-2026 SrCodex (SrCodexStudio)
+All Rights Reserved.
+
+================================================================================
+                                  DISCLAIMER
+================================================================================
+
+ServerBooster is a REMASTERED version of the original abandoned plugin
+(2023-2024). SrCodex is NOT the original author, but is responsible for the
+complete rewrite, modernization, and continued maintenance of this project.
+
+This project was initially released as Open Source in good faith to support
+the Minecraft community. After several months of free maintenance and updates,
+the project has transitioned to a proprietary model to ensure its long-term
+sustainability and continued development.
+
+================================================================================
+                              TERMS AND CONDITIONS
+================================================================================
+
+1. DEFINITIONS
+
+   "Software" refers to ServerBooster Remastered, including all source code,
+   compiled binaries, documentation, configurations, and associated files.
+
+   "Maintainer" refers to SrCodex (SrCodexStudio), responsible for the
+   remastered version and its continued development.
+
+   "User" refers to any individual or entity using the Software.
+
+   "FREE Version" refers to releases marked with [FREE] prefix or versions
+   explicitly designated as free on the official GitHub repository.
+
+   "PREMIUM Version" refers to releases available exclusively through
+   BuiltByBit (https://builtbybit.com/resources/serverbooster.92479/).
+
+2. LICENSE GRANT
+
+   Subject to the terms of this License:
+
+   a) FREE Version Users are granted a limited, non-exclusive, non-transferable
+      license to use the Software for personal or commercial Minecraft servers.
+
+   b) PREMIUM Version Users who have purchased a valid license are granted
+      additional rights as specified in the BuiltByBit purchase terms.
+
+3. RESTRICTIONS
+
+   Users MAY NOT:
+
+   a) Redistribute, resell, or sublicense the Software in any form.
+
+   b) Modify, adapt, translate, reverse engineer, decompile, or disassemble
+      the Software, except as permitted by applicable law.
+
+   c) Remove, alter, or obscure any proprietary notices, labels, or marks.
+
+   d) Use the Software to create derivative works or competing products.
+
+   e) Share, leak, or distribute PREMIUM versions publicly.
+
+   f) Claim authorship or ownership of the Software.
+
+4. INTELLECTUAL PROPERTY
+
+   The remastered Software is protected by copyright laws and international
+   treaties. The Maintainer retains all intellectual property rights, title,
+   and interest in and to the remastered Software and all improvements made.
+
+5. NO WARRANTY
+
+   THE SOFTWARE IS PROVIDED "AS IS" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+
+6. LIMITATION OF LIABILITY
+
+   IN NO EVENT SHALL THE MAINTAINER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+   LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING
+   FROM, OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+   DEALINGS IN THE SOFTWARE.
+
+7. SUPPORT AND UPDATES
+
+   a) FREE Version users receive community support via GitHub Issues.
+
+   b) PREMIUM Version users receive priority support and early access to
+      updates through BuiltByBit.
+
+8. TERMINATION
+
+   This License is effective until terminated. It will terminate automatically
+   if the User fails to comply with any term of this License. Upon termination,
+   the User must cease all use of the Software and destroy all copies.
+
+9. GOVERNING LAW
+
+   This License shall be governed by and construed in accordance with
+   applicable international copyright laws.
+
+================================================================================
+                                   CONTACT
+================================================================================
+
+For licensing inquiries, permissions, or support:
+- GitHub: https://github.com/SrCodexStudio
+- BuiltByBit: https://builtbybit.com/resources/serverbooster.92479/
+
+================================================================================
+
+By using ServerBooster, you acknowledge that you have read, understood, and
+agree to be bound by the terms and conditions of this License.

@@ -2,19 +2,62 @@
   <img src="https://img.shields.io/badge/Minecraft-1.17.x--1.21.x-brightgreen?style=for-the-badge&logo=minecraft" alt="Minecraft Version"/>
   <img src="https://img.shields.io/badge/Platform-Spigot%20%7C%20Paper%20%7C%20Folia-blue?style=for-the-badge" alt="Platform"/>
   <img src="https://img.shields.io/badge/Language-Kotlin-purple?style=for-the-badge&logo=kotlin" alt="Language"/>
-  <img src="https://img.shields.io/badge/License-MIT-green?style=for-the-badge" alt="License"/>
+  <img src="https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge" alt="License"/>
 </p>
 
 <h1 align="center">ServerBooster</h1>
 
 <p align="center">
   <strong>The Ultimate Performance Optimization Plugin for Minecraft Servers</strong>
-  <strong>Discord Support Invite - https://discord.gg/Jxv58TyV7A</strong>
 </p>
 
 <p align="center">
   <em>Remastered Edition for Modern Minecraft (1.17.x - 1.21.x)</em>
 </p>
+
+---
+
+## IMPORTANT ANNOUNCEMENT: FREE & PREMIUM Model
+
+> **Version 3.0.0 is the LAST completely FREE version.**
+
+### What does this mean?
+
+| Version | Availability | Where to get it |
+|---------|--------------|-----------------|
+| **v3.0.0 and earlier** | FREE | [GitHub Releases](https://github.com/SrCodexStudio/ServerBooster/releases) |
+| **v3.0.1+** | PREMIUM | [BuiltByBit](https://builtbybit.com/resources/serverbooster.92479/) |
+| **v3.0.1+ [FREE]** | FREE (delayed) | GitHub (1-2 weeks after PREMIUM release) |
+
+### Why this change?
+
+ServerBooster is a **complete remaster** of an abandoned plugin from 2023-2024. When we launched our first version, it already included:
+
+- Original features not present in the old version
+- Support for newer Minecraft versions (1.20.x - 1.21.x)
+- Complete rewrite in modern Kotlin with coroutines
+- Better performance optimizations
+- Active maintenance and bug fixes
+
+**I have maintained this project for FREE and Open Source for several months in good faith.** However, to ensure the project's long-term sustainability and continued development, I've decided to introduce a PREMIUM model.
+
+### How does it work?
+
+1. **PREMIUM versions** are released first on [BuiltByBit](https://builtbybit.com/resources/serverbooster.92479/)
+2. **FREE versions** are released on GitHub **1-2 weeks later**
+3. Both versions are **identical** - no features are locked behind a paywall
+
+**This is NOT about monetization - it's about SUPPORTING the project.** If you want early access and want to help keep ServerBooster alive, consider purchasing the PREMIUM version. If you prefer to wait, the FREE version will always be available.
+
+### Support the Project
+
+<p align="center">
+  <a href="https://builtbybit.com/resources/serverbooster.92479/">
+    <img src="https://img.shields.io/badge/Get%20PREMIUM-BuiltByBit-orange?style=for-the-badge" alt="Get Premium"/>
+  </a>
+</p>
+
+---
 
 <p align="center">
   <a href="#-features">Features</a> •
@@ -37,7 +80,6 @@
 - **Smart Optimization** - Only optimizes what needs to be optimized
 - **RAM Efficient** - Automatic chunk unloading keeps memory usage low
 - **Multi-Platform** - Works on Spigot, Paper, and Folia
-- **Async Processing** - Uses Kotlin Coroutines for lag-free operations
 
 ---
 
@@ -67,19 +109,6 @@
 
 > Reduce thousands of item entities into just a few, dramatically improving TPS on servers with mob farms or heavy item drops.
 
-### Block Limiter (NEW)
-
-| Feature | Description |
-|---------|-------------|
-| **Radius-Based Detection** | Limits blocks within a configurable radius (like entity limiter) |
-| **Predefined Categories** | Groups like "hoppers", "pistons", "furnaces" |
-| **Custom Materials** | Add ANY block by its Material name |
-| **Global Limits** | Limit building blocks (stone, wood, etc.) |
-| **Entity Support** | Limits armor stands, item frames, paintings |
-| **Non-Destructive** | Existing blocks are never removed |
-
-> Prevent lag machines and excessive block placement. Fully customizable per-block limits with radius-based detection.
-
 ### Chunk Optimization
 
 | Feature | Description |
@@ -91,17 +120,15 @@
 
 > Paper 1.21+ handles chunk management very efficiently. ServerBooster complements this by managing chunks while players are online but have moved away from areas.
 
-### Detection System (NEW)
+### Villager Optimizer
 
 | Feature | Description |
 |---------|-------------|
-| **Spawner Detection** | Find all spawners near online players |
-| **Redstone Detection** | Locate high-density redstone mechanisms |
-| **Async Processing** | Uses coroutines for lag-free scanning |
-| **Teleport Commands** | Quick navigation to detected locations |
-| **Player Proximity** | Shows which players are near each detection |
+| **AI Lobotomy** | Disables AI for stationary villagers (trade halls) |
+| **Smart Reactivation** | Restores AI when player interacts |
+| **Memory Efficient** | Tracks villagers without memory leaks |
 
-> Powerful admin tool to identify and locate potential lag sources across your server.
+> Perfect for servers with large trading halls - villagers that don't move for 60+ seconds have their AI disabled, saving massive CPU cycles while still allowing trading.
 
 ### Elytra Optimization
 
@@ -135,7 +162,7 @@
 
 ### Steps
 
-1. **Download** the latest `ServerBooster-2.0.0.jar` from [Releases](https://github.com/SrCodexStudio/ServerBooster/releases)
+1. **Download** the latest version from [Releases](https://github.com/SrCodexStudio/ServerBooster/releases) or [BuiltByBit](https://builtbybit.com/resources/serverbooster.92479/)
 
 2. **Place** the JAR file in your server's `plugins` folder
 
@@ -157,7 +184,6 @@ plugins/ServerBooster/
 ├── config_optimize_entities.yml # Entity AI optimization
 ├── config_holo.yml              # Item stacking & holograms
 ├── chunks_optimizer.yml         # Chunk management
-├── chunk_block_limits.yml       # Block placement limits (NEW)
 ├── config_tps.yml               # TPS-based commands
 ├── lang/                        # Language files
 │   ├── en_us.yml
@@ -208,111 +234,6 @@ limits:
 | `breeding-limiter-enabled` | Enable breeding limits | `false` |
 | `age-limiter-enabled` | Remove old entities | `false` |
 | `keep-sitting-entities` | Protect sitting pets | `true` |
-
-### Block Limiter (`chunk_block_limits.yml`) - NEW
-
-Controls how many blocks of each type can be placed within a radius.
-
-```yaml
-enabled: true
-
-# Radius in blocks (same system as entity limiter)
-radius: 56
-
-# Worlds where limiter is active
-worlds:
-  - world
-  - world_nether
-  - world_the_end
-
-# Message when placement is denied
-deny-message: "&cYou cannot place more {block} in this area! &7(Limit: {limit})"
-
-# Bypass permission
-bypass-permission: "serverbooster.blocklimits.bypass"
-
-# Block limits within radius
-limits:
-  # === Predefined Categories ===
-  armor-stands: 4
-  item-frames: 4
-  glow-item-frames: 4
-  paintings: 4
-
-  # Storage
-  chests: 4
-  shulker-boxes: 8
-  barrels: 4
-  ender-chests: 2
-
-  # Redstone (lag sources)
-  hoppers: 8
-  pistons: 8
-  observers: 8
-  dispensers: 4
-  droppers: 4
-  comparators: 8
-  repeaters: 16
-
-  # Workstations
-  crafting-tables: 4
-  furnaces: 4
-  anvils: 2
-  brewing-stands: 4
-
-  # === Custom Materials ===
-  # Add ANY block using its Material name!
-  TNT: 4
-  SPAWNER: 2
-  JUKEBOX: 4
-  NOTE_BLOCK: 8
-  BELL: 2
-
-# Global limits for building blocks
-global-limits:
-  enabled: true
-  default-limit: 120    # Default for unlisted blocks
-
-  limits:
-    stone-variants: 256   # Stone, cobblestone, granite, etc.
-    wood-variants: 256    # All wood types
-    terracotta: 128       # All terracotta colors
-    concrete: 128         # All concrete colors
-    glass: 128            # All glass types
-    wool: 128             # All wool colors
-```
-
-#### Adding Custom Blocks
-
-You can limit ANY block by using its exact Material name:
-
-```yaml
-limits:
-  # Predefined categories
-  hoppers: 8
-  pistons: 8
-
-  # Custom blocks - use exact Material names (UPPERCASE)
-  TNT: 4
-  SPAWNER: 2
-  JUKEBOX: 4
-  NOTE_BLOCK: 8
-  BEACON: 1
-  CONDUIT: 1
-  LODESTONE: 2
-  RESPAWN_ANCHOR: 2
-  CAMPFIRE: 4
-  SOUL_CAMPFIRE: 4
-```
-
-> **Material Names**: Use exact Bukkit material names in UPPERCASE with underscores.
-> Full list: https://hub.spigotmc.org/javadocs/bukkit/org/bukkit/Material.html
-
-#### Important Notes
-
-- **Non-Destructive**: Existing blocks that exceed limits are NEVER removed
-- **Placement Only**: Limits only apply when placing NEW blocks
-- **Bypass Permission**: `serverbooster.blocklimits.bypass`
 
 ### Entity Optimizer (`config_optimize_entities.yml`)
 
@@ -450,58 +371,14 @@ tps-commands:
 
 | Command | Permission | Description |
 |---------|------------|-------------|
-| `/sb help` | `serverbooster.help` | Show available commands |
-| `/sb info` | `serverbooster.info` | Show plugin information and modules |
-| `/sb tps` | `serverbooster.tps` | Display current server TPS |
 | `/sb reload` | `serverbooster.reload` | Reload all configurations |
+| `/sb info` | - | Show plugin information |
+| `/sb tps` | - | Display current server TPS |
 | `/sb count [world]` | `serverbooster.mobs.count` | Count entities in world |
 | `/sb limits` | `serverbooster.mobs.limits` | Show entity limits |
 | `/sb check [player]` | `serverbooster.mobs.check` | Check entities near player |
 | `/sb optimize` | `serverbooster.optimize` | Force entity optimization |
 | `/sb blockphysics` | `serverbooster.chunks.blockphysics` | Show physics report |
-| `/sb detect spawners [type]` | `serverbooster.detect` | Detect spawners near players |
-| `/sb detect redstone` | `serverbooster.detect` | Detect redstone mechanisms |
-
-### Detection Commands
-
-The detection system uses async coroutines to scan loaded chunks near online players:
-
-**Spawner Detection** (`/sb detect spawners [entity_type]`)
-```
-/sb detect spawners          # Find all spawners
-/sb detect spawners zombie   # Find only zombie spawners
-/sb detect spawners skeleton # Find only skeleton spawners
-```
-- Scans within 50 blocks of online players
-- Shows spawner type, location, and nearby entities
-- Indicates if spawner is ACTIVE (player within 16 blocks)
-- Provides teleport commands for easy navigation
-
-**Redstone Detection** (`/sb detect redstone`)
-- Finds high-activity components (observers, pistons, hoppers)
-- Shows density of redstone components nearby
-- Color-coded: Green (low), Yellow (medium), Red (high)
-- Helps identify potential lag machines
-
----
-
-## Permissions
-
-| Permission | Description |
-|------------|-------------|
-| `serverbooster.help` | Use `/sb help` command |
-| `serverbooster.info` | Use `/sb info` command |
-| `serverbooster.tps` | Use `/sb tps` command |
-| `serverbooster.reload` | Reload plugin configuration |
-| `serverbooster.mobs.count` | Use `/sb count` command |
-| `serverbooster.mobs.limits` | Use `/sb limits` command |
-| `serverbooster.mobs.check` | Use `/sb check` command |
-| `serverbooster.optimize` | Use `/sb optimize` command |
-| `serverbooster.chunks.blockphysics` | Use `/sb blockphysics` command |
-| `serverbooster.detect` | Use `/sb detect` commands |
-| `serverbooster.blocklimits.bypass` | Bypass block placement limits |
-
-> **Note**: All commands require permissions. Normal players cannot use any ServerBooster commands by default.
 
 ---
 
@@ -541,25 +418,15 @@ The detection system uses async coroutines to scan loaded chunks near online pla
      max_stack: 1024
    ```
 
-5. **Limit Redstone Machines**
-   ```yaml
-   # In chunk_block_limits.yml
-   limits:
-     hoppers: 8
-     pistons: 8
-     observers: 8
-     comparators: 8
-   ```
-
 ### Server Type Recommendations
 
-| Server Type | Chunk Unloader | Entity Limiter | Block Limiter | Item Stacking |
-|-------------|----------------|----------------|---------------|---------------|
-| **Survival** | Enable | Medium | Medium | Enable |
-| **SMP** | Enable | Relaxed | Relaxed | Enable |
-| **Skyblock** | Careful | Strict | Strict | Enable |
-| **Factions** | Enable | Strict | Strict | Enable |
-| **Creative** | Disable | Disable | Disable | Optional |
+| Server Type | Chunk Unloader | Entity Limiter | Item Stacking |
+|-------------|----------------|----------------|---------------|
+| **Survival** | Enable | Medium limits | Enable |
+| **SMP** | Enable | Relaxed limits | Enable |
+| **Skyblock** | Careful | Strict limits | Enable |
+| **Factions** | Enable | Strict limits | Enable |
+| **Creative** | Disable | Disable | Optional |
 
 ### Understanding Chunk Behavior
 
@@ -605,22 +472,14 @@ If you're upgrading from the original ServerBooster:
 **Q: Does item stacking cause duplication?**
 > No! The stacking system has been thoroughly tested to prevent any duplication.
 
-**Q: What happens to existing blocks that exceed limits?**
-> Nothing! Existing blocks are NEVER removed. Limits only apply to NEW placements.
-
 **Q: Why don't I see chunks being unloaded?**
 > On Paper 1.21+, the server already unloads chunks very efficiently. The optimizer works best when players are online and have moved away from areas.
 
 **Q: Can I disable specific modules?**
 > Yes! Set `enabled: false` in each module's config file, then `/sb reload`.
 
-**Q: How do I add a custom block to the limiter?**
-> Add the Material name directly to the `limits` section in `chunk_block_limits.yml`:
-> ```yaml
-> limits:
->   TNT: 4
->   SPAWNER: 2
-> ```
+**Q: What's the difference between FREE and PREMIUM?**
+> Nothing! Both versions are identical. PREMIUM just gives you early access (1-2 weeks earlier) and helps support the project.
 
 ---
 
@@ -642,14 +501,14 @@ Tested on a server with 50 players:
 ## Support
 
 - **Issues**: [GitHub Issues](https://github.com/SrCodexStudio/ServerBooster/issues)
-- **Discord**: Coming soon
+- **Premium Support**: [BuiltByBit](https://builtbybit.com/resources/serverbooster.92479/)
 
 ---
 
 ## Credits
 
-- **Original Author**: LoneDev (dev.lone)
-- **Remastered by**: [SrCodex](https://github.com/SrCodexStudio)
+- **Original Plugin**: LoneDev (dev.lone) - Abandoned in 2023-2024
+- **Remastered by**: [SrCodex](https://github.com/SrCodexStudio) - 2025-Present
 - **Built with**: Kotlin, Paper API, Coroutines
 
 ---
@@ -659,5 +518,11 @@ Tested on a server with 50 players:
 </p>
 
 <p align="center">
-  <sub>Made with care for the Minecraft community</sub>
+  <a href="https://builtbybit.com/resources/serverbooster.92479/">
+    <img src="https://img.shields.io/badge/Support%20the%20Project-Get%20PREMIUM-orange?style=for-the-badge" alt="Support"/>
+  </a>
+</p>
+
+<p align="center">
+  <sub>Made with love for the Minecraft community</sub>
 </p>
