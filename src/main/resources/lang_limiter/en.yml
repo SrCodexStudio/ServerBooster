@@ -1,2 +1,0 @@
-breed-failed-too-many-mobs: "\n&cBreed failed.\nThere are too many mobs of this type in this area.\n&6Limit per chunk: &b{chunk_limit} &7{mob_type} \n&6Limit per radius: &b{radius_limit} &7{mob_type} &f(radius: {radius_size} blocks)&c.\nTry to feed animals far from here (you can try &b{blocks} blocks away&c)\n\n"
-chunk-too-many-updates: "&cToo many BlockPhysics updates &7(&6{count} per minute&7) near coords &6{coords}. &cIt may contain a lag machine"
