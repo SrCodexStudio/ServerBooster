@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <em>Remastered Edition for Modern Minecraft (1.17.x - 1.21.x)</em>
+  <em>Remastered Edition for Modern Minecraft (1.17.x - 26.x)</em>
 </p>
 
 ---
@@ -36,7 +36,7 @@
 ServerBooster is a **complete remaster** of an abandoned plugin from 2023-2024. When we launched our first version, it already included:
 
 - Original features not present in the old version
-- Support for newer Minecraft versions (1.20.x - 1.21.x)
+- Support for newer Minecraft versions (1.20.x - 26.x)
 - Complete rewrite in modern Kotlin with coroutines
 - Better performance optimizations
 - Active maintenance and bug fixes
