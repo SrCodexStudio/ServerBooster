@@ -1,7 +1,7 @@
 <p align="center">
   <img width="1536" height="1024" alt="ServerBooster_Logo" src="https://github.com/user-attachments/assets/74158ae1-7a53-44f8-90c5-3501c8268e78" />
 
-  <img src="https://img.shields.io/badge/Minecraft-1.17.x--1.21.x-brightgreen?style=for-the-badge&logo=minecraft" alt="Minecraft Version"/>
+  <img src="https://img.shields.io/badge/Minecraft-1.17.x--26.x-brightgreen?style=for-the-badge&logo=minecraft" alt="Minecraft Version"/>
   <img src="https://img.shields.io/badge/Platform-Spigot%20%7C%20Paper%20%7C%20Folia-blue?style=for-the-badge" alt="Platform"/>
   <img src="https://img.shields.io/badge/Language-Kotlin-purple?style=for-the-badge&logo=kotlin" alt="Language"/>
   <img src="https://img.shields.io/badge/License-Proprietary-red?style=for-the-badge" alt="License"/>
